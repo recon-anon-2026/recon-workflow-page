@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<style>html{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Agentic Reconstruction Workflow</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one wide "run player" (library | stage | agent log) as the centrepiece, then a skill catalogue and a transfer story. Domain colours follow the paper's method figure. */
+:root{
+  --bg:#f4f5f6; --panel:#ffffff; --ink:#1d2126; --muted:#5d6670; --line:#dde1e5; --soft:#eceff2;
+  --accent:#2f5d7c;
+  --tab:#a8793a; --tab-soft:#f6eee2;
+  --room:#3f6987; --room-soft:#e7eef4;
+  --land:#715f93; --land-soft:#efebf5;
+  --ok:#2e7d4f; --warn:#b4552d;
+  --log-bg:#171b20; --log-ink:#d6dde4; --log-dim:#7d8894;
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Source Sans 3","Segoe UI",Roboto,Arial,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111417; --panel:#191d22; --ink:#e7eaee; --muted:#9aa4ae; --line:#2b3138; --soft:#21262c;
+  --accent:#7fb0d3; --tab:#d6a564; --tab-soft:#2b241b; --room:#7fa9c8; --room-soft:#1c2630;
+  --land:#a998c9; --land-soft:#25202f; --ok:#5cc28a; --warn:#e08a63;
+  --log-bg:#0b0d10; --log-ink:#d6dde4; --log-dim:#6f7a86; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111417; --panel:#191d22; --ink:#e7eaee; --muted:#9aa4ae; --line:#2b3138; --soft:#21262c;
+  --accent:#7fb0d3; --tab:#d6a564; --tab-soft:#2b241b; --room:#7fa9c8; --room-soft:#1c2630;
+  --land:#a998c9; --land-soft:#25202f; --ok:#5cc28a; --warn:#e08a63;
+  --log-bg:#0b0d10; --log-ink:#d6dde4; --log-dim:#6f7a86; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+.wrap{max-width:1240px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(28px,4.2vw,46px);font-weight:800;line-height:1.08}
+h2{font-size:clamp(22px,2.6vw,30px);font-weight:700}
+h3{font-size:17px;font-weight:700}
+p{margin:0}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lede{color:var(--muted);max-width:68ch;font-size:17px}
+section{padding-top:56px;display:grid;gap:20px}
+header.top{padding-top:40px;display:grid;gap:14px}
+.dom-t{color:var(--tab)} .dom-r{color:var(--room)} .dom-l{color:var(--land)}
+
+/* ---------- player ---------- */
+.player{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:grid;
+  grid-template-columns:250px minmax(0,1fr) 300px;grid-template-rows:auto minmax(0,1fr) auto}
+.player:fullscreen{border-radius:0;width:100vw;height:100vh;grid-template-rows:auto minmax(0,1fr) auto}
+.p-head{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;
+  padding:12px 16px;border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{font:600 14px var(--f-body);border:1px solid var(--line);background:var(--bg);color:var(--ink);
+  padding:6px 12px 6px 10px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.tabs button .sw{width:10px;height:10px;border-radius:3px;background:var(--c)}
+.tabs button[aria-pressed="true"]{background:var(--c);border-color:var(--c);color:#fff}
+.tabs button[aria-pressed="true"] .sw{background:#fff}
+.ctrl{display:flex;gap:6px;align-items:center}
+.ctrl button{font:500 13px var(--f-body);border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  border-radius:8px;height:32px;min-width:34px;padding:0 10px;cursor:pointer}
+.ctrl button:hover,.tabs button:hover{border-color:var(--muted)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* library column */
+.lib{border-right:1px solid var(--line);padding:14px 14px 16px;display:grid;gap:14px;align-content:start;background:var(--bg);overflow:auto}
+.lib h4{margin:0;font:600 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.ptree{display:grid;gap:4px;font-size:14px}
+.ptree .fam{font-weight:600;margin-top:4px}
+.ptree .pol{padding:3px 8px;margin-left:10px;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:all .35s}
+.ptree .pol.on{color:var(--ink);border-color:var(--c);background:var(--panel);box-shadow:inset 3px 0 0 var(--c)}
+.skl{display:flex;flex-wrap:wrap;gap:4px}
+.chip{font:500 11.5px/1.2 var(--f-mono);padding:3px 6px;border-radius:5px;border:1px solid var(--line);color:var(--muted);
+  background:var(--panel);transition:all .35s}
+.chip.used{color:var(--ink);border-color:color-mix(in srgb,var(--c) 45%,var(--line))}
+.chip.live{background:var(--c);border-color:var(--c);color:#fff;transform:scale(1.06)}
+.chip.added{animation:pulse 1.2s ease-in-out 2}
+@keyframes pulse{50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 35%,transparent)}}
+
+/* stage */
+.stage{position:relative;min-height:470px;display:grid;grid-template-rows:auto minmax(0,1fr);padding:16px 18px;gap:10px;min-width:0}
+.s-title{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.s-title .ph{font:600 12px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--c);padding:2px 8px;border-radius:4px}
+.s-title h3{font-size:20px}
+.s-title .sub{color:var(--muted);font-size:14.5px;flex-basis:100%}
+.canvas{position:relative;min-height:340px;border-radius:10px;background:var(--soft);overflow:hidden;display:grid;place-items:center}
+.canvas .v{position:absolute;inset:0;padding:14px;display:grid;gap:10px;animation:fadein .5s ease both}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.fig{position:relative;border-radius:8px;overflow:hidden;background:var(--panel);min-height:0;min-width:0;display:grid}
+.fig img{width:100%;height:100%;object-fit:contain;display:block;min-height:0}
+.fig.cover img{object-fit:cover}
+.fig.white{background:#fff}
+.tag{position:absolute;left:8px;top:8px;font:500 11.5px var(--f-mono);background:rgba(20,24,28,.78);color:#fff;padding:2px 7px;border-radius:4px;z-index:3}
+.kb img{animation:kb 7s ease-in-out both}
+@keyframes kb{from{transform:scale(1.0)}to{transform:scale(1.06)}}
+.stag>*{animation:fadein .5s ease both}
+.stag>*:nth-child(2){animation-delay:.35s}.stag>*:nth-child(3){animation-delay:.7s}.stag>*:nth-child(4){animation-delay:1.05s}
+.stag>*:nth-child(5){animation-delay:1.4s}.stag>*:nth-child(6){animation-delay:1.75s}
+/* wipe */
+.wipe{position:relative}
+.wipe .top{position:absolute;inset:0;clip-path:inset(0 100% 0 0);animation:wipe 4.6s ease-in-out .3s both}
+.wipe .top img{width:100%;height:100%;object-fit:contain}
+.wipe .bar{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.25);left:0;animation:wipebar 4.6s ease-in-out .3s both;z-index:2}
+.wipe .tag.r{left:auto;right:8px}
+@keyframes wipe{0%{clip-path:inset(0 100% 0 0)}45%,60%{clip-path:inset(0 0 0 0)}100%{clip-path:inset(0 50% 0 0)}}
+@keyframes wipebar{0%{left:0}45%,60%{left:calc(100% - 2px)}100%{left:50%}}
+/* draw-on */
+.draw img{clip-path:inset(0 100% 0 0);animation:draw 1.6s ease-out both}
+.draw:nth-child(2) img{animation-delay:.9s}.draw:nth-child(3) img{animation-delay:1.8s}.draw:nth-child(4) img{animation-delay:2.7s}
+@keyframes draw{to{clip-path:inset(0 0 0 0)}}
+/* policy card */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:8px;align-content:start;min-width:0}
+.card .k{font:600 11px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.card ol{margin:0;padding-left:20px;display:grid;gap:4px;font-size:14.5px}
+.card ol li{animation:fadein .4s ease both}
+.card code{font:500 12.5px var(--f-mono);color:var(--c)}
+.checks{display:grid;gap:6px;font-size:14px}
+.checks div{display:grid;grid-template-columns:20px 1fr auto;gap:8px;align-items:center;animation:fadein .4s ease both;font-variant-numeric:tabular-nums}
+.checks .m{color:var(--ok);font-weight:700}
+.checks .val{font:500 12.5px var(--f-mono);color:var(--muted)}
+.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g21{grid-template-columns:1.4fr 1fr}.g12{grid-template-columns:1fr 1.25fr}
+.rows2{grid-template-rows:1fr 1fr}
+/* scene graph */
+.sg{width:100%;height:100%}
+.sg rect{fill:var(--panel);stroke:var(--c);stroke-width:1.6}
+.sg text{fill:var(--ink);font:600 14px var(--f-body)}
+.sg path{stroke:var(--c);stroke-width:1.6;fill:none;stroke-dasharray:80;stroke-dashoffset:80;animation:dash .8s ease forwards}
+.sg g{animation:fadein .4s ease both}
+@keyframes dash{to{stroke-dashoffset:0}}
+/* loop badge */
+.loop{position:absolute;right:12px;bottom:12px;z-index:4;font:600 12px var(--f-mono);color:#fff;background:var(--c);padding:4px 9px;border-radius:999px;display:flex;gap:6px;align-items:center}
+.loop svg{animation:spin 2.4s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* log */
+.log{background:var(--log-bg);color:var(--log-ink);font:400 12.5px/1.55 var(--f-mono);padding:14px 14px;overflow:hidden;display:flex;flex-direction:column;gap:2px;min-width:0}
+.log .hd{color:var(--log-dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+.log .ln{white-space:pre-wrap;word-break:break-word;animation:fadein .25s ease both}
+.log .ln .p{color:var(--log-dim)}
+.log .ln.sk{color:#fff}.log .ln.sk b{color:var(--cl);font-weight:500}
+.log .ln.ok{color:#8fd6a8}.log .ln.no{color:#f0a37f}
+.log .ln.old{opacity:.45}
+.cursor{display:inline-block;width:7px;height:13px;background:var(--log-ink);vertical-align:-2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+
+/* timeline */
+.tl{grid-column:1/-1;border-top:1px solid var(--line);padding:10px 16px 12px;display:grid;gap:8px}
+.phases{display:flex;gap:4px;align-items:center;flex-wrap:wrap;font:600 12px var(--f-mono);letter-spacing:.04em;text-transform:uppercase}
+.phases span{padding:3px 8px;border-radius:4px;color:var(--muted);border:1px solid var(--line);transition:all .3s}
+.phases span.on{background:var(--c);color:#fff;border-color:var(--c)}
+.phases span.done{color:var(--ink)}
+.phases i{color:var(--muted);font-style:normal}
+.dots{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px}
+.dots button{height:22px;border:0;padding:0;background:transparent;cursor:pointer;position:relative}
+.dots button::before{content:"";position:absolute;left:0;right:0;top:9px;height:4px;border-radius:2px;background:var(--line)}
+.dots button.done::before{background:color-mix(in srgb,var(--c) 55%,var(--line))}
+.dots button .fill{position:absolute;left:0;top:9px;height:4px;border-radius:2px;background:var(--c);width:0}
+.dots button.cur .fill{animation:fill linear forwards;animation-duration:var(--dur)}
+.paused .dots button.cur .fill{animation-play-state:paused}
+@keyframes fill{to{width:100%}}
+
+/* ---------- skills catalogue ---------- */
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.filters button{font:600 13.5px var(--f-body);border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:5px 12px;border-radius:999px;cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.role{display:grid;gap:10px}
+.role>.rh{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.role>.rh .n{color:var(--muted);font-size:14px}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
+.sk{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:start;cursor:pointer;text-align:left;font:inherit;color:inherit;transition:opacity .3s,border-color .2s}
+.sk:hover{border-color:var(--muted)}
+.sk.dim{opacity:.28}
+.sk .th{width:64px;height:64px;border-radius:7px;background:var(--soft);overflow:hidden;display:grid;place-items:center;color:var(--muted);font:600 11px var(--f-mono)}
+.sk .th img{width:100%;height:100%;object-fit:cover}
+.sk .nm{font-weight:600;font-size:15.5px;line-height:1.25}
+.sk .id{font:400 11.5px var(--f-mono);color:var(--muted);word-break:break-all}
+.sk .ds{font-size:14px;color:var(--muted);margin-top:4px}
+.sk .use{display:flex;gap:4px;margin-top:6px}
+.sk .use span{font:600 10.5px var(--f-mono);padding:1px 6px;border-radius:4px;border:1px solid currentColor}
+.sk .more{display:none;font-size:14px;margin-top:6px;color:var(--ink)}
+.sk[aria-expanded="true"] .more{display:block}
+.u-t{color:var(--tab)}.u-r{color:var(--room)}.u-l{color:var(--land)}
+
+/* ---------- transfer story ---------- */
+.flow{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:18px}
+.fsteps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.fs{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:8px;align-content:start;background:var(--bg);opacity:.4;transition:opacity .5s,border-color .5s}
+.fs.on{opacity:1;border-color:var(--c)}
+.fs .fig{aspect-ratio:4/3}
+.fs p{font-size:14.5px}
+.fs .st{font:600 11px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--c)}
+.bars{display:grid;gap:10px}
+.bar{display:grid;grid-template-columns:90px minmax(0,1fr) 110px;gap:10px;align-items:center;font-size:14px;font-variant-numeric:tabular-nums}
+.bar .track{position:relative;height:18px;background:var(--soft);border-radius:4px;overflow:hidden}
+.bar .b0,.bar .b1{position:absolute;left:0;top:0;bottom:0;border-radius:4px;transition:width 1.4s cubic-bezier(.2,.7,.2,1)}
+.bar .b0{background:color-mix(in srgb,var(--room) 30%,var(--soft))}
+.bar .b1{background:var(--room);width:0}
+.bar .num{font:500 13px var(--f-mono);text-align:right}
+.legend{display:flex;gap:16px;font-size:13.5px;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.note{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--panel);display:grid;gap:6px}
+.note .big{font:700 26px var(--f-display);font-variant-numeric:tabular-nums}
+.note p{font-size:14.5px;color:var(--muted)}
+.foot{color:var(--muted);font-size:13.5px;max-width:90ch}
+
+@media (max-width:1060px){
+  .player{grid-template-columns:minmax(0,1fr);grid-template-rows:auto}
+  .lib{border-right:0;border-bottom:1px solid var(--line);grid-template-columns:1fr 2fr;gap:12px}
+  .log{max-height:200px}
+  .fsteps{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:620px){
+  .lib{grid-template-columns:1fr}
+  .stage{padding:12px;min-height:0}
+  .canvas{min-height:300px;aspect-ratio:auto}
+  .g2,.g3,.g21,.g12{grid-template-columns:1fr 1fr}
+  .fsteps,.side{grid-template-columns:1fr}
+  .bar{grid-template-columns:70px minmax(0,1fr) 92px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}
+  .wipe .top{clip-path:inset(0 50% 0 0)!important}.wipe .bar{left:50%!important}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header class="top">
+  <div class="eyebrow">Supplementary material · interactive</div>
+  <h1>How the reconstruction agent works</h1>
+  <p class="lede">A coding agent turns photographs into an editable Blender scene. It picks a policy from a library, calls reusable skills and geometric tools, and revises the scene until visual, geometric and physical checks pass. Press play to follow one run in each domain: a <span class="dom-t">single-image tabletop</span>, a <span class="dom-r">multi-view room</span>, and an <span class="dom-l">outdoor landmark</span>.</p>
+</header>
+
+<section aria-label="Run player" style="padding-top:24px">
+<div class="player" id="player">
+  <div class="p-head">
+    <div class="tabs" role="group" aria-label="Domain">
+      <button id="tab-t" data-d="t" style="--c:var(--tab)"><span class="sw"></span>Tabletop</button>
+      <button id="tab-r" data-d="r" style="--c:var(--room)"><span class="sw"></span>Room</button>
+      <button id="tab-l" data-d="l" style="--c:var(--land)"><span class="sw"></span>Landmark</button>
+    </div>
+    <div class="ctrl">
+      <button id="b-prev" aria-label="Previous step">&#9664;</button>
+      <button id="b-play" aria-label="Pause">Pause</button>
+      <button id="b-next" aria-label="Next step">&#9654;</button>
+      <button id="b-full" aria-label="Full screen">Full screen</button>
+    </div>
+  </div>
+  <aside class="lib" aria-label="Library">
+    <div><h4>Policy library</h4>
+      <div class="ptree" id="ptree">
+        <div class="fam">Indoor</div>
+        <div class="pol" data-p="room">Rooms (SCRREAM)</div>
+        <div class="pol" data-p="tab">Tabletops (single image)</div>
+        <div class="fam">Outdoor</div>
+        <div class="pol" data-p="land">Landmarks</div>
+        <div class="pol" data-p="church">Churches</div>
+      </div>
+    </div>
+    <div><h4>Skill library · 22</h4><div class="skl" id="chips"></div></div>
+  </aside>
+  <div class="stage">
+    <div class="s-title"><span class="ph" id="s-ph">Plan</span><h3 id="s-h">—</h3><p class="sub" id="s-sub"></p></div>
+    <div class="canvas" id="canvas"></div>
+  </div>
+  <div class="log" id="log" aria-live="off"><div class="hd">Agent log</div></div>
+  <div class="tl">
+    <div class="phases" id="phases"></div>
+    <div class="dots" id="dots"></div>
+  </div>
+</div>
+<p class="foot">Images are actual intermediate outputs from released runs. Log lines are a simplified view of the agent's steps; failures shown in red illustrate when the review loop triggers a revision.</p>
+</section>
+
+<section id="skills">
+  <div class="eyebrow">The reusable skills</div>
+  <h2>22 skills, shared across policies</h2>
+  <p class="lede">A policy lists the steps for a class of scenes. A skill is a reusable procedure, saved as a <code>SKILL.md</code> file: when it applies, which tools it calls, how its output is checked, and where it came from. Policies point to skills instead of copying them, so the same skill can serve a tabletop, a room and a landmark. Click a card for details. Filter to see which skills a domain uses.</p>
+  <div class="filters" role="group" aria-label="Filter by domain">
+    <button id="f-all" data-f="all" aria-pressed="true">All</button>
+    <button id="f-t" data-f="t" aria-pressed="false">Tabletop</button>
+    <button id="f-r" data-f="r" aria-pressed="false">Room</button>
+    <button id="f-l" data-f="l" aria-pressed="false">Landmark</button>
+  </div>
+  <div id="catalog" style="display:grid;gap:26px"></div>
+  <p class="foot">Names and descriptions come from the front matter of each <code>skills/*/SKILL.md</code> in release <code>v-20261108</code>; grouping follows the supplement's skill table. Domain tags show typical use under the released policies; the task policy decides applicability for each run.</p>
+</section>
+
+<section id="transfer">
+  <div class="eyebrow">Learning from experience</div>
+  <h2>A skill learned on tabletops, reused in rooms</h2>
+  <p class="lede">After each run the agent keeps its record of failed checks, attempted fixes and outcomes. A recurring failure can lead it to propose a new skill. Candidates are tested end to end before they enter the library.</p>
+  <div class="flow" id="flow" style="--c:var(--room)">
+    <div class="fsteps">
+      <div class="fs" style="--c:var(--tab)"><span class="st">1 · Failure</span><div class="fig white"><img src="assets/table-contact.jpg" alt="Close view of a plush toy resting on a tabletop" loading="lazy"></div><p>A tabletop scene passes an external physics check, but objects in the saved Blender file are not supported correctly.</p></div>
+      <div class="fs" style="--c:var(--tab)"><span class="st">2 · Proposal</span><div class="fig white"><img src="assets/shared-physics.jpg" alt="Contact close views used by the physics check" loading="lazy"></div><p>The agent proposes and implements <b>saved-state support/physics</b>: reopen the saved file, simulate 5 s in Bullet, check every body.</p></div>
+      <div class="fs"><span class="st">3 · Reuse</span><div class="fig white"><img src="assets/room-support.jpg" alt="Chair leg resting on a parquet floor in the reconstructed room" loading="lazy"></div><p>Rooms have the same support requirements, so the room policy references the skill without copying it.</p></div>
+      <div class="fs"><span class="st">4 · Measured</span>
+        <div class="bars" id="bars"></div>
+        <div class="legend"><span><i style="background:color-mix(in srgb,var(--room) 30%,var(--soft))"></i>before</span><span><i style="background:var(--room)"></i>with skill</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="side">
+    <div class="note"><span class="eyebrow">Controlled HoloScene ablation</span><span class="big">+47.5 pts</span><p>Mean gain in object stability from the support/physics skill on two unseen rooms (93.5% vs 39.1% and 60.5% vs 19.8% stable).</p></div>
+    <div class="note"><span class="eyebrow">Adapting on a new dataset</span><span class="big">−32.0% / −29.0%</span><p>Recorded tokens over two four-scene GraspClutter6D sequences when the agent revises its own policy and skills, versus a frozen library.</p></div>
+    <div class="note"><span class="eyebrow">Not every candidate is kept</span><span class="big">Rejected</span><p>A reimplemented REST3D support-tree candidate overlapped existing support handling and showed no benefit, so it did not enter the library.</p></div>
+    <div class="note"><span class="eyebrow">Transfer on SCRREAM</span><span class="big">+77.6 pts</span><p>Mean stability gain on three rooms, with geometry and camera accuracy nearly unchanged (F-score +0.027, camera error +0.1).</p></div>
+  </div>
+</section>
+</div>
+
+<script>
+(function(){
+const A = n => 'assets/' + n;
+const DC = {t:'var(--tab)', r:'var(--room)', l:'var(--land)'};
+const DCL = {t:'#e4b77a', r:'#9cc3e0', l:'#c2b2e2'};
+
+/* ---- skills (22, from SKILL.md front matter) ---- */
+const SK = [
+ // role, id, name, short, more, use, thumb
+ ['paired','recon-isaacsim-physics','Saved-state support/physics','Reopen the saved scene and simulate it in Bullet.','Simulate 5 s at 60 fps from the saved pose with finite supports and explicit colliders. Every dynamic object must stay within 5 cm translation, 5° rotation and 1 mm/s final speed. The settled pose is not adopted automatically. Learned on tabletops, later adopted by the room policy.','tr','shared-physics.jpg'],
+ ['req','task-policy-first','Task policy','Write a compact task-specific policy before doing anything.','States input count and coverage, objective, semantic priors, tool and model roles, evidence gaps, stops and validation, adapted from the closest library policy.','trl',null],
+ ['req','recon-intake-evidence','Input intake','Freeze the image manifest and pre-read every image.','Prepares a frozen image manifest and a per-image RGB/FFT pre-read before modeling, or when input coverage is questioned.','trl','table-mask-review.jpg'],
+ ['req','recon-camera-program','Camera program','Numerical camera tools: initialize, recover, validate.','Runs camera initialization, agent-directed per-view recovery after a rejected pose, and K/R/t validation.','rl','sofia-vggt.png'],
+ ['req','recon-camera-bridge','Camera bridge','Move cameras between VGGT and Blender frames.','Aligns photo-derived VGGT point clouds with the Blender world frame and transfers cameras both ways, so photos and renders can be compared from the same viewpoint.','l',null],
+ ['req','recon-camera-review','Camera review','Audit each camera against the photographs.','Checks every camera candidate for gross direction, facade identity, mirror or viewpoint errors, which are common on repeated and symmetric buildings.','rl','arc-photo.jpg'],
+ ['req','recon-asset-point-registration','Asset-to-point registration','Fit each SAM 3D asset to its own 3D points.','24 PCA axis candidates, then trimmed ICP with rotation, translation and one uniform scale (never per-axis). A plane fit is used for doors and panels. The result is an initial pose, never acceptance.','r','room-asset.jpg'],
+ ['req','recon-gaussian-mesh','Gaussian backprojection','Lift reviewed masks into the shared 3D frame.','Backprojects reviewed instance masks into the Gaussian scene, giving each physical object coloured 3D points for Blender assembly.','r','backproject-points.png'],
+ ['req','recon-evidence-diagrams','Evidence diagrams','Plot coordinates and measurements to check them.','XYZ point views, mesh-reference overlays, room-plane hypotheses, layout drawings and image-projected anchor checks.','rl','v7-shared-frame.png'],
+ ['req','recon-reference-depth','Reference depth','Use VGGT depth for relative scale of components.','Photo-derived depth as reviewed evidence for component relative scale, with numeric evaluation and agent verification.','l',null],
+ ['req','recon-building-research','Building research','Identify the building and research its plans.','Finds public dimensions, plans, elevations and restoration records with traceable sources. Also used first on a new dataset to research its metrics and protocol. Required by the church policy.','l','church.jpg'],
+ ['req','recon-drawing-model','Drawing model','Build the model in Blender from photos and drawings.','Turns frozen photographs and heuristic engineering drawings (plan, elevations, sections) into a complete coloured building through the Blender MCP. Drawings stay revisable against the photos.','l','berlin-assembly.jpg'],
+ ['req','recon-photo-fft-review','Photo / FFT review','Compare photo and render from the same camera.','Same-camera comparison of photographs and renders. Phase-preserving high-pass (FFT) views remove colour so revisions target edges, repetitions and junctions first.','trl','room-fft.jpg'],
+ ['req','recon-orbit-detail-audit','Orbit detail audit','Inspect the model from close orbits.','Close full orbits, true component regions and multiple angles at crowded connections, for initial or final geometry inspection.','l','arc-render.jpg'],
+ ['req','iteration-metric-evaluation','Iteration metrics','Pick a metric to steer each revision.','Selects existing task-compatible metrics for iteration feedback, or defines a source-grounded evaluator with explicit validation scope. No ground truth during iteration.','trl',null],
+ ['req','recon-evaluation-integrity','Evaluation integrity','Score frozen results with the right scope.','Independent evaluation against authorized references with correct metric scope, units, sampling and failure denominators, only after the model and cameras are frozen.','trl',null],
+ ['req','recon-issue-ledger','Issue ledger','Keep an append-only record of what went wrong.','Reconciles failures, retries, audit reversals and final claims into a run issue ledger. These records feed later skill proposals.','trl',null],
+ ['design','recon-attention-orchestration','Attention orchestration','Decide what the main agent looks at, and what to delegate.','Plans evidence handoffs and assigns bounded low-level tasks to tools or authorized worker agents, so the main agent spends attention on semantic decisions.','trl',null],
+ ['design','recon-freeze-delivery','Freeze and delivery','Track candidates, select one, verify the saved file.','Candidate lineage, modeling budget, geometry selection and validation of the actual saved .blend after reopening it.','trl','room-output.png'],
+ ['design','recon-success-learning','Success learning','Keep what worked for later runs.','Extracts reusable positive practices from user feedback and run evidence during retrospectives.','trl',null],
+ ['tool','recon-moge2-geometry','MoGe-2 geometry','Depth, points, normals and intrinsics from one image.','Single-image geometry for initialization and support planes. It does not recover multi-view poses; camera and scale remain priors.','t','table-depth.jpg'],
+ ['opt','recon-surface-texturing','Surface texturing','Exterior appearance: textures, ornament, relief.','Source-bound UV textures, normal and bump maps and budgeted Blender materials for graffiti, painted ornament and shallow relief.','l','sofia-output.png'],
+];
+const SKN = Object.fromEntries(SK.map(s=>[s[1],s[2]]));
+const ROLES = [['paired','Tested in a paired experiment'],['req','Required by the workflow'],['design','Design'],['tool','Tool interface'],['opt','Optional detail']];
+
+/* ---- run scripts ---- */
+// v: visual spec. log lines: [kind,text]; kind '' plain, 'sk' skill call, 'ok', 'no'
+const RUNS = {
+t:{pol:'tab', steps:[
+ {ph:'Plan',h:'Read the photo, choose a policy',sub:'One RGB photo of a table. The agent routes it to the indoor family, single-image tabletop policy, and writes a task policy.',
+  sk:['task-policy-first','recon-intake-evidence'],
+  v:{k:'policy',img:'table-in.jpg',items:['Infer source camera; MoGe-2 as prior','Reviewed SAM 3 masks → SAM 3D assets','Build worktop first, then hosts, then children','Same-view review + saved-state physics','Budget: five candidates']},
+  log:[['','route: indoor › tabletop (single image)'],['sk','task-policy-first'],['sk','recon-intake-evidence'],['','1 image frozen in manifest']]},
+ {ph:'Estimate',h:'Monocular geometry',sub:'MoGe-2 estimates depth, point map, normals and intrinsics. These initialize scale and the support plane; they stay priors.',
+  sk:['recon-moge2-geometry'],v:{k:'wipe',a:'table-in.jpg',b:'table-depth.jpg',ta:'photo',tb:'MoGe-2 depth'},
+  log:[['sk','recon-moge2-geometry'],['','tool MoGe-2 → depth, normals, K'],['','support plane fitted to worktop']]},
+ {ph:'Estimate',h:'Objects and assets',sub:'SAM 3 finds each object; the agent reviews the masks. SAM 3D generates one asset per object.',
+  sk:['recon-intake-evidence'],v:{k:'grid',cls:'g12',imgs:[['table-mask-overlay.jpg','SAM 3 masks'],['table-mask-review.jpg','mask review sheet']]},
+  log:[['','tool SAM 3 → instance masks'],['','agent reviews every mask'],['','tool SAM 3D → native assets']]},
+ {ph:'Build',h:'Support-first assembly in Blender',sub:'The agent writes Blender code: worktop and background first, then hosts, then the objects they support.',
+  sk:['task-policy-first'],v:{k:'graph',img:'table-output.png',nodes:['Floor','Table','Laptop','Plush']},
+  log:[['','blender: create finite worktop'],['','blender: place hosts, then children'],['','separate visual meshes and colliders']]},
+ {ph:'Review',h:'Same-view and contact review',sub:'Render from the source camera, compare with the photo, and inspect contact close views at feet and bases.',
+  sk:['recon-photo-fft-review'],loop:1,v:{k:'grid',cls:'g2',imgs:[['table-in.jpg','photo'],['table-contact.jpg','contact close view']]},
+  log:[['sk','recon-photo-fft-review'],['','render @ source camera'],['','inspect base and foot contacts']]},
+ {ph:'Review',h:'Saved-state physics check',sub:'Reopen the saved .blend and simulate 5 s in Bullet. Every dynamic body must stay put.',
+  sk:['recon-isaacsim-physics'],loop:1,v:{k:'checks',img:'shared-physics.jpg',rows:[['translation','< 5 cm'],['rotation','< 5°'],['final speed','< 1 mm/s'],['angular speed','< 0.01 rad/s']]},
+  log:[['sk','recon-isaacsim-physics'],['','bullet: 5 s @ 60 fps, 16 substeps'],['ok','all bodies within limits']]},
+ {ph:'Save',h:'Freeze and verify the saved file',sub:'Select a candidate, reopen the saved .blend, re-render and re-check before delivery.',
+  sk:['recon-freeze-delivery'],v:{k:'img',img:'table-output.png',tag:'editable Blender scene',white:1},
+  log:[['sk','recon-freeze-delivery'],['','reopen .blend → re-render → ok'],['ok','delivered']]},
+ {ph:'Record',h:'Record the run',sub:'Failed checks, fixes and outcomes go to the issue ledger. Recurring problems can become new or revised skills.',
+  sk:['recon-issue-ledger','recon-success-learning'],v:{k:'record',items:['failed checks and retries','fixes that worked','candidate skill updates → tested before adoption']},
+  log:[['sk','recon-issue-ledger'],['sk','recon-success-learning'],['','record kept for future runs']]},
+]},
+r:{pol:'room', steps:[
+ {ph:'Plan',h:'Read the capture, choose a policy',sub:'Ordered room captures route to the indoor family and the SCRREAM specialization. The agent writes a task policy.',
+  sk:['task-policy-first','recon-intake-evidence'],
+  v:{k:'policy',img:'room-photo.jpg',items:['Cameras + Gaussian scene in one frame','20 views → SAM 3 → instance registry','Backproject masks; register SAM 3D assets','Room shell → hosts → supported objects','Same-view review, projection gate, physics']},
+  log:[['','route: indoor › SCRREAM rooms'],['sk','task-policy-first'],['sk','recon-intake-evidence']]},
+ {ph:'Estimate',h:'Cameras and a Gaussian scene',sub:'Train a Gaussian scene over all eligible views in the saved camera frame, then pick twenty representative views.',
+  sk:['recon-camera-program','recon-gaussian-mesh'],v:{k:'img',img:'room-gaussians.png',tag:'Gaussian points',white:1},
+  log:[['sk','recon-camera-program'],['','tool gaussian splatting → shared frame'],['','select 20 views']]},
+ {ph:'Estimate',h:'Masks and instance registry',sub:'SAM 3 segments the selected views. The same object seen in several views keeps one identity.',
+  sk:['recon-gaussian-mesh'],v:{k:'wipe',a:'room-photo.jpg',b:'room-masks.jpg',ta:'photo',tb:'SAM 3 instances'},
+  log:[['','tool SAM 3 on 20 views'],['','deduplicate across views → registry']]},
+ {ph:'Estimate',h:'Backproject into 3D',sub:'Each instance mask is lifted into the Gaussian frame. External geometry must agree with the saved cameras.',
+  sk:['recon-gaussian-mesh','recon-evidence-diagrams'],v:{k:'checks',img:'backproject-points.png',white:1,rows:[['same-source scale','|s − 1| ≤ 3%'],['same-source rotation','∠R ≤ 1°'],['learned depth','never sets layout scale']]},
+  log:[['sk','recon-evidence-diagrams'],['','backproject masks → per-object points'],['ok','same-source check passed']]},
+ {ph:'Build',h:'Register assets to their points',sub:'Each SAM 3D asset is fitted to its own points: 24 axis candidates, trimmed ICP, one uniform scale.',
+  sk:['recon-asset-point-registration'],v:{k:'grid',cls:'g2',white:1,imgs:[['room-asset.jpg','SAM 3D asset'],['backproject-points.png','its 3D points']]},
+  log:[['sk','recon-asset-point-registration'],['','ICP ≤ 40 iters, trim 20%'],['','initial pose only, agent decides placement']]},
+ {ph:'Build',h:'Assemble the room',sub:'The agent builds the room enclosure first, then furniture, then the objects they support.',
+  sk:['task-policy-first'],v:{k:'graph',img:'room-output.png',nodes:['Room shell','Sofa','Table','Chair']},
+  log:[['','blender: enclosure and openings'],['','blender: hosts, then supported objects']]},
+ {ph:'Review',h:'Same-view review',sub:'Render from the saved cameras and compare with the photos. Structural views reduce the influence of colour.',
+  sk:['recon-photo-fft-review'],loop:1,v:{k:'wipe',a:'room-photo.jpg',b:'room-render.jpg',ta:'photo',tb:'render'},
+  log:[['sk','recon-photo-fft-review'],['','render @ saved cameras'],['no','mismatch found → revise geometry']]},
+ {ph:'Review',h:'Projection gate',sub:'Rendered silhouettes are compared with the reviewed masks over the saved views. No ground truth is used.',
+  sk:['iteration-metric-evaluation'],loop:1,v:{k:'checks',img:'gate-overlay.jpg',rows:[['enclosure IoU (median)','≥ 0.80'],['object IoU (median)','≥ 0.65'],['area ratio','0.90 – 1.10'],['consistent shift','none']]},
+  log:[['sk','iteration-metric-evaluation'],['','projection gate over saved views'],['ok','gate passed']]},
+ {ph:'Review',h:'Physics, reused from tabletops',sub:'The saved-state physics skill, first written for tabletops, checks that every object is supported.',
+  sk:['recon-isaacsim-physics'],loop:1,v:{k:'grid',cls:'g2',imgs:[['room-support.jpg','support close view'],['shared-physics.jpg','contact views']]},
+  log:[['sk','recon-isaacsim-physics'],['','reopen saved .blend, bullet 5 s'],['ok','all bodies stable']]},
+ {ph:'Save',h:'Freeze, verify and record',sub:'Reopen the saved file, re-render, deliver, and write the run record.',
+  sk:['recon-freeze-delivery','recon-issue-ledger'],v:{k:'img',img:'room-output.png',tag:'editable Blender room',white:1},
+  log:[['sk','recon-freeze-delivery'],['sk','recon-issue-ledger'],['ok','delivered']]},
+]},
+l:{pol:'land', steps:[
+ {ph:'Plan',h:'Read the photos, choose a policy',sub:'Internet photos of a landmark route to the outdoor family. The agent drafts a registry of physical parts and a task policy.',
+  sk:['task-policy-first','recon-intake-evidence'],
+  v:{k:'policy',img:'arc-photo.jpg',items:['Registry of parts from all photos','RGB + FFT pre-read of every photo','Cameras: VGGT, then per-view review','Sections → plan and elevations','Structure first, then detail']},
+  log:[['','route: outdoor › landmark'],['sk','task-policy-first'],['sk','recon-intake-evidence']]},
+ {ph:'Estimate',h:'Frequency-domain views',sub:'Phase-preserving high-pass views remove colour and expose edges, repetitions and junctions (768 px, f_c = 0.03 cycles/px).',
+  sk:['recon-photo-fft-review'],v:{k:'wipe',a:'arc-photo.jpg',b:'arc-fft.jpg',ta:'photo',tb:'FFT view'},
+  log:[['sk','recon-photo-fft-review'],['','same frozen filter for photos and renders']]},
+ {ph:'Estimate',h:'Cameras, checked view by view',sub:'VGGT estimates cameras. The agent rejects estimates that disagree with the photo, a common failure on symmetric facades.',
+  sk:['recon-camera-program','recon-camera-review','recon-camera-bridge'],v:{k:'grid',cls:'g2',imgs:[['sofia-photo.jpg','photo'],['sofia-vggt.png','VGGT points']]},
+  log:[['sk','recon-camera-program'],['sk','recon-camera-review'],['no','pose disagrees with photo → rejected'],['sk','recon-camera-bridge']]},
+ {ph:'Estimate',h:'Heuristic engineering drawings',sub:'Sections cut from a SAM 3D reference mesh guide a plan and elevation. They make counts of bays and openings explicit, and stay revisable.',
+  sk:['recon-evidence-diagrams','recon-drawing-model'],v:{k:'draw',imgs:[['arc-section.png','section'],['arc-plan.png','plan'],['arc-elevation.png','elevation']]},
+  log:[['sk','recon-evidence-diagrams'],['','tool SAM 3D → reference mesh'],['','cut sections → draw plan, elevation']]},
+ {ph:'Build',h:'Structure first, then detail',sub:'The agent builds the overall structure in Blender from the drawings, then adds finer components.',
+  sk:['recon-drawing-model','recon-attention-orchestration'],v:{k:'grid',cls:'g3',white:1,imgs:[['berlin-plan.png','plan'],['berlin-elevation.png','elevation'],['berlin-assembly.jpg','assembly']]},
+  log:[['sk','recon-drawing-model'],['','blender: massing → bays → openings'],['sk','recon-attention-orchestration'],['','(optional) components to worker agents']]},
+ {ph:'Review',h:'Same-camera structural review',sub:'Photos and renders are compared from the same camera in RGB and FFT; close orbits check crowded connections.',
+  sk:['recon-photo-fft-review','recon-orbit-detail-audit'],loop:1,v:{k:'wipe',a:'arc-photo.jpg',b:'arc-render.jpg',ta:'photo',tb:'model'},
+  log:[['sk','recon-photo-fft-review'],['sk','recon-orbit-detail-audit'],['no','missing component → revise']]},
+ {ph:'Save',h:'Freeze and verify',sub:'Reopen the saved file, re-render from the recovered cameras and deliver.',
+  sk:['recon-freeze-delivery','recon-surface-texturing'],v:{k:'grid',cls:'g2',white:1,imgs:[['arc-render.jpg','Arc de Triomphe'],['sofia-output.png','Sofia cathedral']]},
+  log:[['sk','recon-surface-texturing'],['sk','recon-freeze-delivery'],['ok','delivered']]},
+ {ph:'Record',h:'Record the run',sub:'The FFT and drawing skills came from such records: an unguided agent kept fixing colours while structural errors stayed.',
+  sk:['recon-issue-ledger','recon-success-learning'],v:{k:'record',items:['structural errors that persisted','what fixed them (FFT views, drawings)','candidate skill updates → tested before adoption']},
+  log:[['sk','recon-issue-ledger'],['sk','recon-success-learning'],['','record kept for future runs']]},
+]}};
+const PHASES = ['Plan','Estimate','Build','Review','Revise','Save','Record'];
+
+/* ---- DOM ---- */
+const $ = id => document.getElementById(id);
+const player=$('player'), canvas=$('canvas'), logEl=$('log'), chipsEl=$('chips'), dots=$('dots'), phEl=$('phases');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+chipsEl.innerHTML = SK.map(s=>`<span class="chip" data-s="${s[1]}" title="${s[1]}">${s[2]}</span>`).join('');
+phEl.innerHTML = PHASES.map((p,i)=>(i?(p==='Revise'?'<i>⇄</i>':'<i>›</i>'):'')+`<span data-p="${p}">${p}</span>`).join('');
+
+let dom='t', idx=0, playing=!reduce, timer=null, typeTimers=[];
+const DUR = 6000;
+
+function fig(src,tag,extra=''){return `<div class="fig ${extra}"><img src="${A(src)}" alt="${tag||''}">${tag?`<span class="tag">${tag}</span>`:''}</div>`}
+function visual(v){
+  const w = v.white?'white':'';
+  switch(v.k){
+  case 'img': return `<div class="v" style="grid-template-rows:minmax(0,1fr)">${fig(v.img,v.tag,'kb '+w)}</div>`;
+  case 'wipe': return `<div class="v" style="grid-template-rows:minmax(0,1fr)"><div class="fig wipe ${w}"><img src="${A(v.a)}" alt="${v.ta}"><div class="top"><img src="${A(v.b)}" alt="${v.tb}"></div><div class="bar"></div><span class="tag">${v.tb}</span><span class="tag r">${v.ta}</span></div></div>`;
+  case 'grid': return `<div class="v stag ${v.cls}" style="grid-template-rows:minmax(0,1fr)">${v.imgs.map(i=>fig(i[0],i[1],w)).join('')}</div>`;
+  case 'draw': return `<div class="v g3" style="grid-template-rows:minmax(0,1fr)">${v.imgs.map(i=>`<div class="fig white draw"><img src="${A(i[0])}" alt="${i[1]}"><span class="tag">${i[1]}</span></div>`).join('')}</div>`;
+  case 'policy': return `<div class="v g12" style="grid-template-rows:minmax(0,1fr)">${fig(v.img,'input')}<div class="card"><span class="k">Task policy</span><ol>${v.items.map((t,i)=>`<li style="animation-delay:${.5+i*.45}s">${t}</li>`).join('')}</ol></div></div>`;
+  case 'checks': return `<div class="v g21" style="grid-template-rows:minmax(0,1fr)">${fig(v.img,null,w)}<div class="card"><span class="k">Checks</span><div class="checks">${v.rows.map((r,i)=>`<div style="animation-delay:${.6+i*.6}s"><span class="m">✓</span><span>${r[0]}</span><span class="val">${r[1]}</span></div>`).join('')}</div></div></div>`;
+  case 'graph': {
+    const n=v.nodes, pos=[[100,40],[100,130],[40,220],[160,220]];
+    const g = `<svg class="sg" viewBox="0 0 200 260" role="img" aria-label="Support graph">
+      <path d="M100 58 V112" style="animation-delay:.5s"/><path d="M100 148 L45 202" style="animation-delay:1.2s"/><path d="M100 148 L160 202" style="animation-delay:1.2s"/>
+      ${n.map((t,i)=>`<g style="animation-delay:${i<2?i*.6:1.6}s"><rect x="${pos[i][0]-38}" y="${pos[i][1]-18}" width="76" height="36" rx="7"/><text x="${pos[i][0]}" y="${pos[i][1]+5}" text-anchor="middle">${t}</text></g>`).join('')}</svg>`;
+    return `<div class="v g12" style="grid-template-rows:minmax(0,1fr)"><div class="card"><span class="k">Support order</span>${g}</div>${fig(v.img,'Blender scene','white kb')}</div>`;}
+  case 'record': return `<div class="v" style="place-items:center"><div class="card" style="max-width:440px;width:100%"><span class="k">Run record → library</span><ol>${v.items.map((t,i)=>`<li style="animation-delay:${.4+i*.6}s">${t}</li>`).join('')}</ol><p style="font-size:14px;color:var(--muted);animation:fadein .4s ease 2.4s both">Example: the saved-state physics skill was proposed from a tabletop record and later reused in rooms.</p></div></div>`;
+  }
+}
+function typeLog(lines, cl){
+  typeTimers.forEach(clearTimeout); typeTimers=[];
+  logEl.querySelectorAll('.ln').forEach(e=>e.classList.add('old'));
+  const old = logEl.querySelectorAll('.ln'); if(old.length>14) for(let i=0;i<old.length-14;i++) old[i].remove();
+  logEl.querySelector('.cursor')?.remove();
+  lines.forEach((l,i)=>{
+    typeTimers.push(setTimeout(()=>{
+      const d=document.createElement('div'); d.className='ln '+l[0]; d.style.setProperty('--cl',cl);
+      d.innerHTML = l[0]==='sk' ? `<span class="p">› skill </span><b>${l[1]}</b>` : l[0]==='ok' ? `✓ ${l[1]}` : l[0]==='no' ? `✗ ${l[1]}` : `<span class="p">  </span>${l[1]}`;
+      logEl.appendChild(d);
+      if(i===lines.length-1){const c=document.createElement('span');c.className='cursor';d.appendChild(document.createTextNode(' '));d.appendChild(c);}
+    }, reduce?0:250+i*700));
+  });
+}
+function render(){
+  const run=RUNS[dom], s=run.steps[idx], c=DC[dom];
+  player.style.setProperty('--c',c);
+  ['t','r','l'].forEach(d=>$('tab-'+d).setAttribute('aria-pressed',d===dom));
+  document.querySelectorAll('#ptree .pol').forEach(p=>{p.classList.toggle('on',p.dataset.p===run.pol);p.style.setProperty('--c',c)});
+  $('s-ph').textContent=s.ph; $('s-h').textContent=s.h; $('s-sub').textContent=s.sub;
+  canvas.innerHTML = visual(s.v) + (s.loop?`<span class="loop"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M10 6a4 4 0 1 1-1.2-2.8M10 1v3H7" stroke="#fff" stroke-width="1.6" fill="none"/></svg>review ⇄ revise</span>`:'');
+  const used = new Set(); run.steps.slice(0,idx).forEach(x=>x.sk.forEach(k=>used.add(k)));
+  chipsEl.querySelectorAll('.chip').forEach(ch=>{const k=ch.dataset.s; ch.style.setProperty('--c',c);
+    ch.classList.toggle('live',s.sk.includes(k)); ch.classList.toggle('used',used.has(k)&&!s.sk.includes(k));
+    ch.classList.toggle('added', s.ph==='Record' && (k==='recon-isaacsim-physics'||k==='recon-photo-fft-review'));});
+  const pi = PHASES.indexOf(s.ph);
+  phEl.querySelectorAll('span').forEach((sp,i)=>{const p=sp.dataset.p; const on = p===s.ph || (s.loop && p==='Revise');
+    sp.classList.toggle('on',on); sp.classList.toggle('done',i<pi);});
+  dots.innerHTML = run.steps.map((x,i)=>`<button aria-label="Step ${i+1}: ${x.h}" class="${i<idx?'done':''} ${i===idx?'cur':''}" data-i="${i}"><span class="fill"></span></button>`).join('');
+  dots.style.setProperty('--dur',DUR+'ms');
+  typeLog(s.log, DCL[dom]);
+  schedule();
+}
+function schedule(){
+  clearTimeout(timer); player.classList.toggle('paused',!playing);
+  $('b-play').textContent = playing?'Pause':'Play'; $('b-play').setAttribute('aria-label',playing?'Pause':'Play');
+  if(playing) timer=setTimeout(next, DUR);
+}
+function next(){const n=RUNS[dom].steps.length; if(idx<n-1){idx++;} else {const o=['t','r','l']; dom=o[(o.indexOf(dom)+1)%3]; idx=0; logEl.querySelectorAll('.ln').forEach(e=>e.remove());} render();}
+function prev(){if(idx>0){idx--;render();}}
+$('b-next').onclick=()=>next(); $('b-prev').onclick=()=>prev();
+$('b-play').onclick=()=>{playing=!playing; if(playing) render(); else schedule();};
+$('b-full').onclick=()=>{try{ if(document.fullscreenElement) document.exitFullscreen(); else player.requestFullscreen().catch(()=>{});}catch(e){}};
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{dom=b.dataset.d; idx=0; logEl.querySelectorAll('.ln').forEach(e=>e.remove()); render();});
+dots.addEventListener('click',e=>{const b=e.target.closest('button'); if(b){idx=+b.dataset.i; render();}});
+player.addEventListener('keydown',e=>{if(e.key==='ArrowRight')next(); if(e.key==='ArrowLeft')prev();});
+// pause when off-screen
+new IntersectionObserver(es=>es.forEach(en=>{ if(!en.isIntersecting){clearTimeout(timer);} else if(playing){schedule();} }),{threshold:.2}).observe(player);
+render();
+
+/* ---- catalogue ---- */
+const cat=$('catalog');
+cat.innerHTML = ROLES.map(([r,label])=>{const list=SK.filter(s=>s[0]===r); return `<div class="role"><div class="rh"><h3>${label}</h3><span class="n">${list.length} skill${list.length>1?'s':''}</span></div><div class="sgrid">${list.map(s=>`
+  <button class="sk" id="sk-${s[1]}" data-use="${s[5]}" aria-expanded="false">
+    <span class="th">${s[6]?`<img src="${A(s[6])}" alt="" loading="lazy">`:'md'}</span>
+    <span style="min-width:0"><span class="nm">${s[2]}</span><br><span class="id">${s[1]}</span>
+      <span class="ds" style="display:block">${s[3]}</span>
+      <span class="more">${s[4]}</span>
+      <span class="use">${s[5].includes('t')?'<span class="u-t">Tabletop</span>':''}${s[5].includes('r')?'<span class="u-r">Room</span>':''}${s[5].includes('l')?'<span class="u-l">Landmark</span>':''}</span>
+    </span></button>`).join('')}</div></div>`}).join('');
+cat.addEventListener('click',e=>{const b=e.target.closest('.sk'); if(b) b.setAttribute('aria-expanded', b.getAttribute('aria-expanded')!=='true');});
+document.querySelectorAll('.filters button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.filters button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  const f=b.dataset.f; cat.querySelectorAll('.sk').forEach(s=>s.classList.toggle('dim', f!=='all' && !s.dataset.use.includes(f)));
+});
+
+/* ---- transfer story ---- */
+const DATA=[['Scene 01',16.7,93.8],['Scene 02',35.7,100.0],['Scene 08',4.3,95.7]];
+$('bars').innerHTML = DATA.map(d=>`<div class="bar"><span>${d[0]}</span><span class="track"><span class="b1" data-w="${d[2]}"></span><span class="b0" style="width:${d[1]}%"></span></span><span class="num">${d[1].toFixed(1)} → ${d[2].toFixed(1)}%</span></div>`).join('');
+const fs=[...document.querySelectorAll('.fs')];
+let flowRun=false;
+function playFlow(){ if(flowRun) return; flowRun=true;
+  fs.forEach((f,i)=>setTimeout(()=>f.classList.add('on'), reduce?0:i*900));
+  setTimeout(()=>document.querySelectorAll('.b1').forEach(b=>b.style.width=b.dataset.w+'%'), reduce?0:3000);
+}
+// resting state is complete: if observer never fires, still show everything after load
+new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting) playFlow();}),{threshold:.35}).observe($('flow'));
+setTimeout(()=>{ if(!flowRun){ fs.forEach(f=>f.classList.add('on')); document.querySelectorAll('.b1').forEach(b=>b.style.width=b.dataset.w+'%'); flowRun=true; } }, 5000);
+})();
+</script>
+</body>
+</html>
