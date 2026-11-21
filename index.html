@@ -172,18 +172,18 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .role>.rh{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
 .role>.rh .n{color:var(--muted);font-size:14px}
 .sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
-.sk{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:start;cursor:pointer;text-align:left;font:inherit;color:inherit;transition:opacity .3s,border-color .2s}
-.sk:hover{border-color:var(--muted)}
-.sk.dim{opacity:.28}
-.sk .th{width:64px;height:64px;border-radius:7px;background:var(--soft);overflow:hidden;display:grid;place-items:center;color:var(--muted);font:600 11px var(--f-mono)}
-.sk .th img{width:100%;height:100%;object-fit:cover}
-.sk .nm{font-weight:600;font-size:15.5px;line-height:1.25}
-.sk .id{font:400 11.5px var(--f-mono);color:var(--muted);word-break:break-all}
-.sk .ds{font-size:14px;color:var(--muted);margin-top:4px}
-.sk .use{display:flex;gap:4px;margin-top:6px}
-.sk .use span{font:600 10.5px var(--f-mono);padding:1px 6px;border-radius:4px;border:1px solid currentColor}
-.sk .more{display:none;font-size:14px;margin-top:6px;color:var(--ink)}
-.sk[aria-expanded="true"] .more{display:block}
+.skc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:start;cursor:pointer;text-align:left;font:inherit;color:inherit;transition:opacity .3s,border-color .2s}
+.skc:hover{border-color:var(--muted)}
+.skc.dim{opacity:.28}
+.skc .th{width:64px;height:64px;border-radius:7px;background:var(--soft);overflow:hidden;display:grid;place-items:center;color:var(--muted);font:600 11px var(--f-mono)}
+.skc .th img{width:100%;height:100%;object-fit:cover}
+.skc .nm{font-weight:600;font-size:15.5px;line-height:1.25}
+.skc .id{font:400 11.5px var(--f-mono);color:var(--muted);word-break:break-all}
+.skc .ds{font-size:14px;color:var(--muted);margin-top:4px}
+.skc .use{display:flex;gap:4px;margin-top:6px}
+.skc .use span{font:600 10.5px var(--f-mono);padding:1px 6px;border-radius:4px;border:1px solid currentColor}
+.skc .more{display:none;font-size:14px;margin-top:6px;color:var(--ink)}
+.skc[aria-expanded="true"] .more{display:block}
 .u-t{color:var(--tab)}.u-r{color:var(--room)}.u-l{color:var(--land)}
 
 /* ---------- transfer story ---------- */
@@ -231,11 +231,13 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 </head>
 <body>
 
+
 <div class="wrap">
 <header class="top">
   <div class="eyebrow">Supplementary material · interactive</div>
   <h1>How the reconstruction agent works</h1>
   <p class="lede">A coding agent turns photographs into an editable Blender scene. It picks a policy from a library, calls reusable skills and geometric tools, and revises the scene until visual, geometric and physical checks pass. Press play to follow one run in each domain: a <span class="dom-t">single-image tabletop</span>, a <span class="dom-r">multi-view room</span>, and an <span class="dom-l">outdoor landmark</span>.</p>
+<p class="lede" style="font-size:16px"><a href="gallery.html" style="color:var(--accent);font-weight:600">See all 66 reconstructions →</a></p>
 </header>
 
 <section aria-label="Run player" style="padding-top:24px">
@@ -332,7 +334,7 @@ const SK = [
  ['req','recon-camera-program','Camera program','Numerical camera tools: initialize, recover, validate.','Runs camera initialization, agent-directed per-view recovery after a rejected pose, and K/R/t validation.','rl','sofia-vggt.png'],
  ['req','recon-camera-bridge','Camera bridge','Move cameras between VGGT and Blender frames.','Aligns photo-derived VGGT point clouds with the Blender world frame and transfers cameras both ways, so photos and renders can be compared from the same viewpoint.','l',null],
  ['req','recon-camera-review','Camera review','Audit each camera against the photographs.','Checks every camera candidate for gross direction, facade identity, mirror or viewpoint errors, which are common on repeated and symmetric buildings.','rl','arc-photo.jpg'],
- ['req','recon-asset-point-registration','Asset-to-point registration','Fit each SAM 3D asset to its own 3D points.','24 PCA axis candidates, then trimmed ICP with rotation, translation and one uniform scale (never per-axis). A plane fit is used for doors and panels. The result is an initial pose, never acceptance.','r','room-asset.jpg'],
+ ['req','recon-asset-point-registration','Asset-to-point registration','Fit each SAM 3D asset to its own 3D points.','24 PCA axis candidates, then trimmed ICP with rotation, translation and one uniform scale (never per-axis). A plane fit is used for doors and panels. The result is an initial pose, never acceptance.','r','s05-asset.png'],
  ['req','recon-gaussian-mesh','Gaussian backprojection','Lift reviewed masks into the shared 3D frame.','Backprojects reviewed instance masks into the Gaussian scene, giving each physical object coloured 3D points for Blender assembly.','r','backproject-points.png'],
  ['req','recon-evidence-diagrams','Evidence diagrams','Plot coordinates and measurements to check them.','XYZ point views, mesh-reference overlays, room-plane hypotheses, layout drawings and image-projected anchor checks.','rl','v7-shared-frame.png'],
  ['req','recon-reference-depth','Reference depth','Use VGGT depth for relative scale of components.','Photo-derived depth as reviewed evidence for component relative scale, with numeric evaluation and agent verification.','l',null],
@@ -344,7 +346,7 @@ const SK = [
  ['req','recon-evaluation-integrity','Evaluation integrity','Score frozen results with the right scope.','Independent evaluation against authorized references with correct metric scope, units, sampling and failure denominators, only after the model and cameras are frozen.','trl',null],
  ['req','recon-issue-ledger','Issue ledger','Keep an append-only record of what went wrong.','Reconciles failures, retries, audit reversals and final claims into a run issue ledger. These records feed later skill proposals.','trl',null],
  ['design','recon-attention-orchestration','Attention orchestration','Decide what the main agent looks at, and what to delegate.','Plans evidence handoffs and assigns bounded low-level tasks to tools or authorized worker agents, so the main agent spends attention on semantic decisions.','trl',null],
- ['design','recon-freeze-delivery','Freeze and delivery','Track candidates, select one, verify the saved file.','Candidate lineage, modeling budget, geometry selection and validation of the actual saved .blend after reopening it.','trl','room-output.png'],
+ ['design','recon-freeze-delivery','Freeze and delivery','Track candidates, select one, verify the saved file.','Candidate lineage, modeling budget, geometry selection and validation of the actual saved .blend after reopening it.','trl','s05-output.png'],
  ['design','recon-success-learning','Success learning','Keep what worked for later runs.','Extracts reusable positive practices from user feedback and run evidence during retrospectives.','trl',null],
  ['tool','recon-moge2-geometry','MoGe-2 geometry','Depth, points, normals and intrinsics from one image.','Single-image geometry for initialization and support planes. It does not recover multi-view poses; camera and scale remain priors.','t','table-depth.jpg'],
  ['opt','recon-surface-texturing','Surface texturing','Exterior appearance: textures, ornament, relief.','Source-bound UV textures, normal and bump maps and budgeted Blender materials for graffiti, painted ornament and shallow relief.','l','sofia-output.png'],
@@ -385,34 +387,34 @@ t:{pol:'tab', steps:[
 r:{pol:'room', steps:[
  {ph:'Plan',h:'Read the capture, choose a policy',sub:'Ordered room captures route to the indoor family and the SCRREAM specialization. The agent writes a task policy.',
   sk:['task-policy-first','recon-intake-evidence'],
-  v:{k:'policy',img:'room-photo.jpg',items:['Cameras + Gaussian scene in one frame','20 views → SAM 3 → instance registry','Backproject masks; register SAM 3D assets','Room shell → hosts → supported objects','Same-view review, projection gate, physics']},
+  v:{k:'policy',img:'s05-photo.jpg',items:['Cameras + Gaussian scene in one frame','20 views → SAM 3 → instance registry','Backproject masks; register SAM 3D assets','Room shell → hosts → supported objects','Same-view review, projection gate, physics']},
   log:[['','route: indoor › SCRREAM rooms'],['sk','task-policy-first'],['sk','recon-intake-evidence']]},
  {ph:'Estimate',h:'Cameras and a Gaussian scene',sub:'Train a Gaussian scene over all eligible views in the saved camera frame, then pick twenty representative views.',
-  sk:['recon-camera-program','recon-gaussian-mesh'],v:{k:'img',img:'room-gaussians.png',tag:'Gaussian points',white:1},
+  sk:['recon-camera-program','recon-gaussian-mesh'],v:{k:'img',img:'s05-gaussian.jpg',tag:'Gaussian scene (rendered view)'},
   log:[['sk','recon-camera-program'],['','tool gaussian splatting → shared frame'],['','select 20 views']]},
  {ph:'Estimate',h:'Masks and instance registry',sub:'SAM 3 segments the selected views. The same object seen in several views keeps one identity.',
-  sk:['recon-gaussian-mesh'],v:{k:'wipe',a:'room-photo.jpg',b:'room-masks.jpg',ta:'photo',tb:'SAM 3 instances'},
+  sk:['recon-gaussian-mesh'],v:{k:'wipe',a:'s05-photo.jpg',b:'s05-masks.jpg',ta:'photo',tb:'SAM 3 instances'},
   log:[['','tool SAM 3 on 20 views'],['','deduplicate across views → registry']]},
  {ph:'Estimate',h:'Backproject into 3D',sub:'Each instance mask is lifted into the Gaussian frame. External geometry must agree with the saved cameras.',
-  sk:['recon-gaussian-mesh','recon-evidence-diagrams'],v:{k:'checks',img:'backproject-points.png',white:1,rows:[['same-source scale','|s − 1| ≤ 3%'],['same-source rotation','∠R ≤ 1°'],['learned depth','never sets layout scale']]},
+  sk:['recon-gaussian-mesh','recon-evidence-diagrams'],v:{k:'checks',img:'s05-points-all.png',white:1,rows:[['same-source scale','|s − 1| ≤ 3%'],['same-source rotation','∠R ≤ 1°'],['learned depth','never sets layout scale']]},
   log:[['sk','recon-evidence-diagrams'],['','backproject masks → per-object points'],['ok','same-source check passed']]},
  {ph:'Build',h:'Register assets to their points',sub:'Each SAM 3D asset is fitted to its own points: 24 axis candidates, trimmed ICP, one uniform scale.',
-  sk:['recon-asset-point-registration'],v:{k:'grid',cls:'g2',white:1,imgs:[['room-asset.jpg','SAM 3D asset'],['backproject-points.png','its 3D points']]},
+  sk:['recon-asset-point-registration'],v:{k:'grid',cls:'g2',white:1,imgs:[['s05-asset.png','SAM 3D asset (wood chair)'],['s05-fit.png','its points + fitted asset']]},
   log:[['sk','recon-asset-point-registration'],['','ICP ≤ 40 iters, trim 20%'],['','initial pose only, agent decides placement']]},
  {ph:'Build',h:'Assemble the room',sub:'The agent builds the room enclosure first, then furniture, then the objects they support.',
-  sk:['task-policy-first'],v:{k:'graph',img:'room-output.png',nodes:['Room shell','Sofa','Table','Chair']},
+  sk:['task-policy-first'],v:{k:'graph',img:'s05-output.png',nodes:['Room shell','Cabinet','Table','Chair']},
   log:[['','blender: enclosure and openings'],['','blender: hosts, then supported objects']]},
  {ph:'Review',h:'Same-view review',sub:'Render from the saved cameras and compare with the photos. Structural views reduce the influence of colour.',
-  sk:['recon-photo-fft-review'],loop:1,v:{k:'wipe',a:'room-photo.jpg',b:'room-render.jpg',ta:'photo',tb:'render'},
+  sk:['recon-photo-fft-review'],loop:1,v:{k:'wipe',a:'s05-photo.jpg',b:'s05-render.jpg',ta:'photo',tb:'render'},
   log:[['sk','recon-photo-fft-review'],['','render @ saved cameras'],['no','mismatch found → revise geometry']]},
  {ph:'Review',h:'Projection gate',sub:'Rendered silhouettes are compared with the reviewed masks over the saved views. No ground truth is used.',
-  sk:['iteration-metric-evaluation'],loop:1,v:{k:'checks',img:'gate-overlay.jpg',rows:[['enclosure IoU (median)','≥ 0.80'],['object IoU (median)','≥ 0.65'],['area ratio','0.90 – 1.10'],['consistent shift','none']]},
+  sk:['iteration-metric-evaluation'],loop:1,v:{k:'checks',img:'s05-overlay.jpg',rows:[['enclosure IoU (median)','≥ 0.80'],['object IoU (median)','≥ 0.65'],['area ratio','0.90 – 1.10'],['consistent shift','none']]},
   log:[['sk','iteration-metric-evaluation'],['','projection gate over saved views'],['ok','gate passed']]},
  {ph:'Review',h:'Physics, reused from tabletops',sub:'The saved-state physics skill, first written for tabletops, checks that every object is supported.',
-  sk:['recon-isaacsim-physics'],loop:1,v:{k:'grid',cls:'g2',imgs:[['room-support.jpg','support close view'],['shared-physics.jpg','contact views']]},
+  sk:['recon-isaacsim-physics'],loop:1,v:{k:'grid',cls:'g2',imgs:[['s05-support.jpg','support close view'],['s05-foot.jpg','foot contact']]},
   log:[['sk','recon-isaacsim-physics'],['','reopen saved .blend, bullet 5 s'],['ok','all bodies stable']]},
  {ph:'Save',h:'Freeze, verify and record',sub:'Reopen the saved file, re-render, deliver, and write the run record.',
-  sk:['recon-freeze-delivery','recon-issue-ledger'],v:{k:'img',img:'room-output.png',tag:'editable Blender room',white:1},
+  sk:['recon-freeze-delivery','recon-issue-ledger'],v:{k:'img',img:'s05-output.png',tag:'editable Blender room',white:1},
   log:[['sk','recon-freeze-delivery'],['sk','recon-issue-ledger'],['ok','delivered']]},
 ]},
 l:{pol:'land', steps:[
@@ -436,7 +438,7 @@ l:{pol:'land', steps:[
   sk:['recon-photo-fft-review','recon-orbit-detail-audit'],loop:1,v:{k:'wipe',a:'arc-photo.jpg',b:'arc-render.jpg',ta:'photo',tb:'model'},
   log:[['sk','recon-photo-fft-review'],['sk','recon-orbit-detail-audit'],['no','missing component → revise']]},
  {ph:'Save',h:'Freeze and verify',sub:'Reopen the saved file, re-render from the recovered cameras and deliver.',
-  sk:['recon-freeze-delivery','recon-surface-texturing'],v:{k:'grid',cls:'g2',white:1,imgs:[['arc-render.jpg','Arc de Triomphe'],['sofia-output.png','Sofia cathedral']]},
+  sk:['recon-freeze-delivery','recon-surface-texturing'],v:{k:'grid',cls:'g3',white:1,imgs:[['arc-latest.png','Arc de Triomphe'],['berliner-dom.png','Berliner Dom'],['sofia-output.png','Sofia cathedral']]},
   log:[['sk','recon-surface-texturing'],['sk','recon-freeze-delivery'],['ok','delivered']]},
  {ph:'Record',h:'Record the run',sub:'The FFT and drawing skills came from such records: an unguided agent kept fixing colours while structural errors stayed.',
   sk:['recon-issue-ledger','recon-success-learning'],v:{k:'record',items:['structural errors that persisted','what fixed them (FFT views, drawings)','candidate skill updates → tested before adoption']},
@@ -526,17 +528,17 @@ render();
 /* ---- catalogue ---- */
 const cat=$('catalog');
 cat.innerHTML = ROLES.map(([r,label])=>{const list=SK.filter(s=>s[0]===r); return `<div class="role"><div class="rh"><h3>${label}</h3><span class="n">${list.length} skill${list.length>1?'s':''}</span></div><div class="sgrid">${list.map(s=>`
-  <button class="sk" id="sk-${s[1]}" data-use="${s[5]}" aria-expanded="false">
+  <button class="skc" id="sk-${s[1]}" data-use="${s[5]}" aria-expanded="false">
     <span class="th">${s[6]?`<img src="${A(s[6])}" alt="" loading="lazy">`:'md'}</span>
     <span style="min-width:0"><span class="nm">${s[2]}</span><br><span class="id">${s[1]}</span>
       <span class="ds" style="display:block">${s[3]}</span>
       <span class="more">${s[4]}</span>
       <span class="use">${s[5].includes('t')?'<span class="u-t">Tabletop</span>':''}${s[5].includes('r')?'<span class="u-r">Room</span>':''}${s[5].includes('l')?'<span class="u-l">Landmark</span>':''}</span>
     </span></button>`).join('')}</div></div>`}).join('');
-cat.addEventListener('click',e=>{const b=e.target.closest('.sk'); if(b) b.setAttribute('aria-expanded', b.getAttribute('aria-expanded')!=='true');});
+cat.addEventListener('click',e=>{const b=e.target.closest('.skc'); if(b) b.setAttribute('aria-expanded', b.getAttribute('aria-expanded')!=='true');});
 document.querySelectorAll('.filters button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('.filters button').forEach(x=>x.setAttribute('aria-pressed',x===b));
-  const f=b.dataset.f; cat.querySelectorAll('.sk').forEach(s=>s.classList.toggle('dim', f!=='all' && !s.dataset.use.includes(f)));
+  const f=b.dataset.f; cat.querySelectorAll('.skc').forEach(s=>s.classList.toggle('dim', f!=='all' && !s.dataset.use.includes(f)));
 });
 
 /* ---- transfer story ---- */
@@ -553,5 +555,6 @@ new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting) playFlow();})
 setTimeout(()=>{ if(!flowRun){ fs.forEach(f=>f.classList.add('on')); document.querySelectorAll('.b1').forEach(b=>b.style.width=b.dataset.w+'%'); flowRun=true; } }, 5000);
 })();
 </script>
+
 </body>
 </html>
