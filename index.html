@@ -4,330 +4,621 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex">
-<style>html{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
-<title>Agentic Reconstruction Workflow</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<title>Agentic 3D Reconstruction Across Scales</title>
+<meta name="description" content="Supplementary material: how a coding agent turns photographs into editable Blender scenes, the reusable skills it calls, and what it learns between runs.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <style>
-/* Layout: one wide "run player" (library | stage | agent log) as the centrepiece, then a skill catalogue and a transfer story. Domain colours follow the paper's method figure. */
 :root{
-  --bg:#f4f5f6; --panel:#ffffff; --ink:#1d2126; --muted:#5d6670; --line:#dde1e5; --soft:#eceff2;
+  --bg:#f6f5f2; --paper:#fbfaf8; --panel:#ffffff; --ink:#1b1e22; --ink2:#3a4048; --muted:#69707a; --line:#e2e0dc; --soft:#efede9;
   --accent:#2f5d7c;
   --tab:#a8793a; --tab-soft:#f6eee2;
   --room:#3f6987; --room-soft:#e7eef4;
   --land:#715f93; --land-soft:#efebf5;
   --ok:#2e7d4f; --warn:#b4552d;
-  --log-bg:#171b20; --log-ink:#d6dde4; --log-dim:#7d8894;
-  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --user:#1f2328; --user-ink:#f4f4f2;
+  --shadow:0 1px 2px rgba(20,22,26,.04),0 12px 40px -12px rgba(20,22,26,.18);
+  --f-serif:"Newsreader",Georgia,"Times New Roman",serif;
   --f-body:"Source Sans 3","Segoe UI",Roboto,Arial,sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#111417; --panel:#191d22; --ink:#e7eaee; --muted:#9aa4ae; --line:#2b3138; --soft:#21262c;
-  --accent:#7fb0d3; --tab:#d6a564; --tab-soft:#2b241b; --room:#7fa9c8; --room-soft:#1c2630;
-  --land:#a998c9; --land-soft:#25202f; --ok:#5cc28a; --warn:#e08a63;
-  --log-bg:#0b0d10; --log-ink:#d6dde4; --log-dim:#6f7a86; color-scheme:dark}}
+  --bg:#121417; --paper:#16191c; --panel:#1b1f23; --ink:#e9ebee; --ink2:#c6ccd3; --muted:#98a1ab; --line:#2a3036; --soft:#21262b;
+  --accent:#86b5d6; --tab:#d6a564; --tab-soft:#2b241b; --room:#86afcd; --room-soft:#1c2630; --land:#ae9ecf; --land-soft:#25202f;
+  --ok:#5cc28a; --warn:#e08a63; --user:#e9ebee; --user-ink:#16191c; --shadow:0 1px 2px rgba(0,0,0,.3),0 16px 44px -14px rgba(0,0,0,.6); color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#111417; --panel:#191d22; --ink:#e7eaee; --muted:#9aa4ae; --line:#2b3138; --soft:#21262c;
-  --accent:#7fb0d3; --tab:#d6a564; --tab-soft:#2b241b; --room:#7fa9c8; --room-soft:#1c2630;
-  --land:#a998c9; --land-soft:#25202f; --ok:#5cc28a; --warn:#e08a63;
-  --log-bg:#0b0d10; --log-ink:#d6dde4; --log-dim:#6f7a86; color-scheme:dark}
+  --bg:#121417; --paper:#16191c; --panel:#1b1f23; --ink:#e9ebee; --ink2:#c6ccd3; --muted:#98a1ab; --line:#2a3036; --soft:#21262b;
+  --accent:#86b5d6; --tab:#d6a564; --tab-soft:#2b241b; --room:#86afcd; --room-soft:#1c2630; --land:#ae9ecf; --land-soft:#25202f;
+  --ok:#5cc28a; --warn:#e08a63; --user:#e9ebee; --user-ink:#16191c; --shadow:0 1px 2px rgba(0,0,0,.3),0 16px 44px -14px rgba(0,0,0,.6); color-scheme:dark}
 
 *{box-sizing:border-box}
-body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
-.wrap{max-width:1240px;margin:0 auto}
-h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;letter-spacing:-.01em}
-h1{font-size:clamp(28px,4.2vw,46px);font-weight:800;line-height:1.08}
-h2{font-size:clamp(22px,2.6vw,30px);font-weight:700}
-h3{font-size:17px;font-weight:700}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+img{max-width:100%}
+a{color:inherit}
+[hidden]{display:none!important}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{margin:0;text-wrap:balance}
 p{margin:0}
-.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.lede{color:var(--muted);max-width:68ch;font-size:17px}
-section{padding-top:56px;display:grid;gap:20px}
-header.top{padding-top:40px;display:grid;gap:14px}
-.dom-t{color:var(--tab)} .dom-r{color:var(--room)} .dom-l{color:var(--land)}
+.mono{font-family:var(--f-mono)}
+.dom-t{color:var(--tab)}.dom-r{color:var(--room)}.dom-l{color:var(--land)}
+button{font:inherit;color:inherit}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
-/* ---------- player ---------- */
-.player{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:grid;
-  grid-template-columns:250px minmax(0,1fr) 300px;grid-template-rows:auto minmax(0,1fr) auto}
-.player:fullscreen{border-radius:0;width:100vw;height:100vh;grid-template-rows:auto minmax(0,1fr) auto}
-.p-head{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;
-  padding:12px 16px;border-bottom:1px solid var(--line)}
-.tabs{display:flex;gap:6px;flex-wrap:wrap}
-.tabs button{font:600 14px var(--f-body);border:1px solid var(--line);background:var(--bg);color:var(--ink);
-  padding:6px 12px 6px 10px;border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:8px}
-.tabs button .sw{width:10px;height:10px;border-radius:3px;background:var(--c)}
-.tabs button[aria-pressed="true"]{background:var(--c);border-color:var(--c);color:#fff}
-.tabs button[aria-pressed="true"] .sw{background:#fff}
-.ctrl{display:flex;gap:6px;align-items:center}
-.ctrl button{font:500 13px var(--f-body);border:1px solid var(--line);background:var(--panel);color:var(--ink);
-  border-radius:8px;height:32px;min-width:34px;padding:0 10px;cursor:pointer}
-.ctrl button:hover,.tabs button:hover{border-color:var(--muted)}
-button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* ---------- nav ---------- */
+.nav{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid transparent;transition:border-color .3s}
+.nav.stuck{border-bottom-color:var(--line)}
+.nav .wrap{display:flex;align-items:center;gap:20px;height:56px}
+.brand{font:500 17px var(--f-serif);letter-spacing:-.005em;white-space:nowrap;text-decoration:none}
+.brand i{color:var(--muted);font-style:italic}
+.nav ul{list-style:none;margin:0 0 0 auto;padding:0;display:flex;gap:4px}
+.nav ul a{display:block;text-decoration:none;font:500 14.5px var(--f-body);color:var(--muted);padding:6px 10px;border-radius:7px;transition:color .2s,background .2s}
+.nav ul a:hover{color:var(--ink);background:var(--soft)}
+.nav ul a.on{color:var(--ink)}
+.prog{position:absolute;left:0;bottom:-1px;height:2px;background:var(--ink);width:0;transform-origin:left}
 
-/* library column */
-.lib{border-right:1px solid var(--line);padding:14px 14px 16px;display:grid;gap:14px;align-content:start;background:var(--bg);overflow:auto}
-.lib h4{margin:0;font:600 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.ptree{display:grid;gap:4px;font-size:14px}
-.ptree .fam{font-weight:600;margin-top:4px}
-.ptree .pol{padding:3px 8px;margin-left:10px;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:all .35s}
-.ptree .pol.on{color:var(--ink);border-color:var(--c);background:var(--panel);box-shadow:inset 3px 0 0 var(--c)}
-.skl{display:flex;flex-wrap:wrap;gap:4px}
-.chip{font:500 11.5px/1.2 var(--f-mono);padding:3px 6px;border-radius:5px;border:1px solid var(--line);color:var(--muted);
-  background:var(--panel);transition:all .35s}
-.chip.used{color:var(--ink);border-color:color-mix(in srgb,var(--c) 45%,var(--line))}
-.chip.live{background:var(--c);border-color:var(--c);color:#fff;transform:scale(1.06)}
-.chip.added{animation:pulse 1.2s ease-in-out 2}
-@keyframes pulse{50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 35%,transparent)}}
+/* ---------- hero ---------- */
+.hero{padding-top:56px;padding-bottom:30px;display:grid;gap:48px}
+.hero .kicker{font:500 12.5px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:flex;gap:10px;align-items:center}
+.hero .kicker::before{content:"";width:22px;height:1px;background:currentColor}
+.hero h1{font:400 clamp(40px,5.6vw,76px)/1.0 var(--f-serif);letter-spacing:-.025em;max-width:16ch;margin-top:18px}
+.hero h1 em{font-style:italic;color:var(--muted)}
+.hero .sub{font:500 clamp(17px,1.6vw,20px)/1.45 var(--f-body);color:var(--ink2);max-width:58ch;margin-top:22px}
+.hero .sub b{font-weight:600;color:var(--ink)}
+.cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:28px}
+.btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font:600 15px var(--f-body);padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);transition:transform .2s,border-color .2s}
+.btn:hover{border-color:var(--muted);transform:translateY(-1px)}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn svg{width:15px;height:15px}
 
-/* stage */
-.stage{position:relative;min-height:470px;display:grid;grid-template-rows:auto minmax(0,1fr);padding:16px 18px;gap:10px;min-width:0}
-.s-title{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
-.s-title .ph{font:600 12px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:#fff;background:var(--c);padding:2px 8px;border-radius:4px}
-.s-title h3{font-size:20px}
-.s-title .sub{color:var(--muted);font-size:14.5px;flex-basis:100%}
-.canvas{position:relative;min-height:340px;border-radius:10px;background:var(--soft);overflow:hidden;display:grid;place-items:center}
-.canvas .v{position:absolute;inset:0;padding:14px;display:grid;gap:10px;animation:fadein .5s ease both}
+.hero-top{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:40px;align-items:center}
+.teaser{--c:var(--room);background:var(--paper);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:18px 18px 20px;display:flex;flex-direction:column;gap:14px}
+.teaser .t-bar{display:flex;align-items:center;gap:8px;font:500 12.5px var(--f-mono);color:var(--muted);padding-bottom:10px;border-bottom:1px solid var(--line)}
+.teaser .t-bar .live{width:8px;height:8px;border-radius:50%;background:var(--c);animation:ping 2s infinite}
+.teaser .msg{animation:rise .6s cubic-bezier(.2,.7,.2,1) both}
+.teaser .msg:nth-child(3){animation-delay:.9s}
+.teaser .call{animation-delay:calc(1.5s + var(--i) * .45s)}
+.teaser .attach img{width:96px;height:72px}
+/* scale ladder */
+.ladder{display:grid;grid-template-columns:.8fr 1.05fr 1.3fr;gap:18px;align-items:end}
+.rung{position:relative;display:grid;gap:12px}
+.rung .pic{position:relative;border-radius:16px;background:var(--panel);border:1px solid var(--line);overflow:hidden;display:grid;place-items:center;box-shadow:var(--shadow)}
+.rung .pic img{width:88%;height:88%;object-fit:contain;filter:drop-shadow(0 10px 16px rgba(0,0,0,.14));opacity:0;transform:translateY(14px) scale(.97);transition:opacity .9s ease,transform 1.1s cubic-bezier(.2,.7,.2,1)}
+.rung:nth-child(1) .pic{aspect-ratio:1/1}
+.rung:nth-child(2) .pic{aspect-ratio:5/4}
+.rung:nth-child(3) .pic{aspect-ratio:6/5}
+.ladder.in .rung .pic img{opacity:1;transform:none}
+.ladder.in .rung:nth-child(2) .pic img{transition-delay:.35s}
+.ladder.in .rung:nth-child(3) .pic img{transition-delay:.7s}
+.rung .cap{display:flex;justify-content:space-between;gap:10px;align-items:baseline;font-size:14.5px}
+.rung .cap b{font-weight:600}
+.rung .cap span{font:400 12.5px var(--f-mono);color:var(--muted);text-align:right}
+.rung .sw{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:7px;background:var(--c)}
+.ladder-axis{grid-column:1/-1;position:relative;height:18px;margin-top:-4px}
+.ladder-axis::before{content:"";position:absolute;left:0;right:12px;top:8px;height:1px;background:var(--line)}
+.ladder-axis::after{content:"";position:absolute;right:0;top:3px;border:6px solid transparent;border-left:10px solid var(--line);border-right:0}
+.ladder-axis span{position:absolute;right:20px;top:-14px;font:500 11.5px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* ---------- chapters ---------- */
+.chapter{padding-top:96px}
+.ch-head{display:grid;grid-template-columns:160px minmax(0,1fr);gap:8px 28px;margin-bottom:34px}
+.ch-num{font:400 13px var(--f-mono);color:var(--muted);letter-spacing:.06em;padding-top:12px;border-top:1px solid var(--ink);align-self:start}
+.ch-head h2{font:400 clamp(30px,3.9vw,50px)/1.08 var(--f-serif);letter-spacing:-.02em;max-width:22ch}
+.ch-head h2 em{font-style:italic;color:var(--muted)}
+.ch-head .lede{grid-column:2;color:var(--ink2);max-width:66ch;font-size:18px;margin-top:6px}
+.foot{color:var(--muted);font-size:14px;max-width:96ch;margin-top:14px}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .8s ease,transform .9s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* ---------- session (chat player) ---------- */
+.session{--c:var(--tab);background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);overflow:hidden;display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);grid-template-rows:auto minmax(0,1fr) auto}
+.s-top{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--paper)}
+.s-id{display:flex;align-items:center;gap:10px;font:500 13px var(--f-mono);color:var(--muted)}
+.s-id .live{width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:0 0 0 0 color-mix(in srgb,var(--c) 50%,transparent);animation:ping 2s infinite}
+.paused .s-id .live{animation:none;opacity:.5}
+@keyframes ping{70%{box-shadow:0 0 0 7px transparent}100%{box-shadow:0 0 0 0 transparent}}
+.tabs{display:flex;gap:4px;padding:3px;background:var(--soft);border-radius:999px}
+.tabs button{border:0;background:transparent;cursor:pointer;font:600 14px var(--f-body);color:var(--muted);padding:6px 14px;border-radius:999px;display:flex;gap:8px;align-items:center;transition:background .25s,color .25s}
+.tabs button .sw{width:8px;height:8px;border-radius:2px;background:var(--cc)}
+.tabs button[aria-pressed="true"]{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.ctrl{display:flex;gap:6px}
+.ctrl button{border:1px solid var(--line);background:var(--panel);border-radius:8px;height:32px;min-width:34px;padding:0 10px;cursor:pointer;font:500 13.5px var(--f-body);display:inline-grid;place-items:center}
+.ctrl button:hover{border-color:var(--muted)}
+.ctrl svg{width:12px;height:12px}
+
+/* chat column */
+.chat{position:relative;border-right:1px solid var(--line);background:var(--paper);min-height:0;display:grid}
+.chat-scroll{height:620px;overflow-y:auto;padding:22px 20px 28px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth;scrollbar-width:thin}
+.chat::after{content:"";position:absolute;left:0;right:0;top:0;height:26px;background:linear-gradient(var(--paper),transparent);pointer-events:none}
+.msg{display:grid;gap:8px;animation:rise .45s cubic-bezier(.2,.7,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.static .msg,.static .call,.static .res{animation:none!important}
+.who{display:flex;align-items:center;gap:8px;font:600 12.5px var(--f-body);color:var(--muted);letter-spacing:.01em}
+.av{width:22px;height:22px;border-radius:7px;display:grid;place-items:center;flex:none}
+.av.agent{background:var(--c);color:#fff}
+.av.agent svg{width:13px;height:13px}
+.av.user{background:var(--soft);color:var(--ink2);font:700 11px var(--f-body)}
+.msg.user{justify-items:end}
+.msg.user .who{flex-direction:row-reverse}
+.bubble{background:var(--user);color:var(--user-ink);padding:10px 14px;border-radius:16px 16px 4px 16px;max-width:88%;font-size:15.5px;line-height:1.5}
+.attach{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;max-width:88%}
+.attach img{width:84px;height:64px;object-fit:cover;border-radius:9px;border:1px solid var(--line);display:block}
+.attach .more{height:64px;padding:0 12px;border-radius:9px;border:1px dashed var(--line);display:grid;place-items:center;font:500 12px var(--f-mono);color:var(--muted)}
+.say{font-size:15.5px;line-height:1.55;color:var(--ink);padding-left:30px}
+.say b{font-weight:600}
+.calls{margin-left:30px;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+.call{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:9px;align-items:start;padding:7px 11px;font:400 12.8px/1.5 var(--f-mono);color:var(--ink2);border-top:1px solid var(--line);animation:rise .35s ease both}
+.call:first-child{border-top:0}
+.call .ic{width:18px;height:18px;border-radius:5px;display:grid;place-items:center;margin-top:1px}
+.call .ic svg{width:11px;height:11px}
+.call.skill .ic{background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c)}
+.call.tool .ic,.call.bl .ic,.call.nt .ic{background:var(--soft);color:var(--muted)}
+.call .k{font-weight:600;color:var(--ink)}
+.call.skill .k{color:var(--c)}
+.call .st{font-size:11.5px;color:var(--muted);white-space:nowrap;padding-top:1px}
+.call .st .spin{display:inline-block;width:10px;height:10px;border:1.6px solid var(--line);border-top-color:var(--c);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-1px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.res{display:grid;grid-template-columns:18px minmax(0,1fr);gap:9px;padding:7px 11px;font:500 12.8px/1.5 var(--f-mono);border-top:1px solid var(--line);animation:rise .35s ease both}
+.res.ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 7%,transparent)}
+.res.no{color:var(--warn);background:color-mix(in srgb,var(--warn) 8%,transparent)}
+.thumbs{margin-left:30px;display:flex;gap:6px;flex-wrap:wrap}
+.thumbs img{height:58px;width:auto;max-width:110px;object-fit:cover;border-radius:8px;border:1px solid var(--line);background:#fff;display:block}
+.divider{display:flex;align-items:center;gap:10px;font:600 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--c);margin:6px 0 -2px}
+.divider::before,.divider::after{content:"";flex:1;height:1px;background:color-mix(in srgb,var(--c) 30%,var(--line))}
+.typing{padding-left:30px;display:flex;gap:4px;height:14px;align-items:center}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--muted);opacity:.4;animation:dot 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes dot{40%{opacity:1;transform:translateY(-2px)}}
+.file{margin-left:30px;display:flex;align-items:center;gap:10px;border:1px solid color-mix(in srgb,var(--c) 40%,var(--line));background:color-mix(in srgb,var(--c) 6%,var(--panel));border-radius:12px;padding:9px 12px;max-width:340px;animation:rise .45s ease both}
+.file svg{width:26px;height:26px;color:var(--c);flex:none}
+.file b{display:block;font:600 13.5px var(--f-mono)}
+.file span{font-size:13px;color:var(--muted)}
+
+/* workspace column */
+.ws{display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:12px;padding:18px 18px 16px;min-width:0;min-height:0}
+.ws-head{display:grid;gap:4px}
+.ws-head .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ph{font:600 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:#fff;background:var(--c);padding:3px 8px;border-radius:5px}
+.ws-head h3{font:500 23px/1.2 var(--f-serif);letter-spacing:-.01em}
+.ws-head .route{font:400 12.5px var(--f-mono);color:var(--muted)}
+.canvas{position:relative;min-height:400px;border-radius:14px;background:var(--soft);overflow:hidden}
+.canvas .v{position:absolute;inset:0;padding:14px;display:grid;gap:10px;animation:fadein .55s ease both}
 @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.fig{position:relative;border-radius:8px;overflow:hidden;background:var(--panel);min-height:0;min-width:0;display:grid}
+.fig{position:relative;border-radius:10px;overflow:hidden;background:var(--panel);min-height:0;min-width:0;display:grid}
 .fig img{width:100%;height:100%;object-fit:contain;display:block;min-height:0}
-.fig.cover img{object-fit:cover}
 .fig.white{background:#fff}
-.tag{position:absolute;left:8px;top:8px;font:500 11.5px var(--f-mono);background:rgba(20,24,28,.78);color:#fff;padding:2px 7px;border-radius:4px;z-index:3}
+.tag{position:absolute;left:8px;top:8px;font:500 11.5px var(--f-mono);background:rgba(20,24,28,.78);color:#fff;padding:2px 7px;border-radius:5px;z-index:3}
 .kb img{animation:kb 7s ease-in-out both}
-@keyframes kb{from{transform:scale(1.0)}to{transform:scale(1.06)}}
+@keyframes kb{from{transform:scale(1)}to{transform:scale(1.05)}}
 .stag>*{animation:fadein .5s ease both}
-.stag>*:nth-child(2){animation-delay:.35s}.stag>*:nth-child(3){animation-delay:.7s}.stag>*:nth-child(4){animation-delay:1.05s}
-.stag>*:nth-child(5){animation-delay:1.4s}.stag>*:nth-child(6){animation-delay:1.75s}
-/* wipe */
-.wipe{position:relative}
+.stag>*:nth-child(2){animation-delay:.35s}.stag>*:nth-child(3){animation-delay:.7s}
 .wipe .top{position:absolute;inset:0;clip-path:inset(0 100% 0 0);animation:wipe 4.6s ease-in-out .3s both}
 .wipe .top img{width:100%;height:100%;object-fit:contain}
 .wipe .bar{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.25);left:0;animation:wipebar 4.6s ease-in-out .3s both;z-index:2}
 .wipe .tag.r{left:auto;right:8px}
 @keyframes wipe{0%{clip-path:inset(0 100% 0 0)}45%,60%{clip-path:inset(0 0 0 0)}100%{clip-path:inset(0 50% 0 0)}}
 @keyframes wipebar{0%{left:0}45%,60%{left:calc(100% - 2px)}100%{left:50%}}
-/* draw-on */
 .draw img{clip-path:inset(0 100% 0 0);animation:draw 1.6s ease-out both}
-.draw:nth-child(2) img{animation-delay:.9s}.draw:nth-child(3) img{animation-delay:1.8s}.draw:nth-child(4) img{animation-delay:2.7s}
+.draw:nth-child(2) img{animation-delay:.9s}.draw:nth-child(3) img{animation-delay:1.8s}
 @keyframes draw{to{clip-path:inset(0 0 0 0)}}
-/* policy card */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:8px;align-content:start;min-width:0}
 .card .k{font:600 11px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
-.card ol{margin:0;padding-left:20px;display:grid;gap:4px;font-size:14.5px}
+.card ol{margin:0;padding-left:20px;display:grid;gap:5px;font-size:15px}
 .card ol li{animation:fadein .4s ease both}
-.card code{font:500 12.5px var(--f-mono);color:var(--c)}
-.checks{display:grid;gap:6px;font-size:14px}
+.checks{display:grid;gap:7px;font-size:14.5px}
 .checks div{display:grid;grid-template-columns:20px 1fr auto;gap:8px;align-items:center;animation:fadein .4s ease both;font-variant-numeric:tabular-nums}
 .checks .m{color:var(--ok);font-weight:700}
 .checks .val{font:500 12.5px var(--f-mono);color:var(--muted)}
 .g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}.g21{grid-template-columns:1.4fr 1fr}.g12{grid-template-columns:1fr 1.25fr}
-.rows2{grid-template-rows:1fr 1fr}
-/* scene graph */
 .sg{width:100%;height:100%}
 .sg rect{fill:var(--panel);stroke:var(--c);stroke-width:1.6}
 .sg text{fill:var(--ink);font:600 14px var(--f-body)}
 .sg path{stroke:var(--c);stroke-width:1.6;fill:none;stroke-dasharray:80;stroke-dashoffset:80;animation:dash .8s ease forwards}
 .sg g{animation:fadein .4s ease both}
 @keyframes dash{to{stroke-dashoffset:0}}
-/* loop badge */
-.loop{position:absolute;right:12px;bottom:12px;z-index:4;font:600 12px var(--f-mono);color:#fff;background:var(--c);padding:4px 9px;border-radius:999px;display:flex;gap:6px;align-items:center}
+.loop{position:absolute;right:12px;bottom:12px;z-index:4;font:600 12px var(--f-mono);color:#fff;background:var(--c);padding:4px 10px;border-radius:999px;display:flex;gap:6px;align-items:center}
 .loop svg{animation:spin 2.4s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-/* log */
-.log{background:var(--log-bg);color:var(--log-ink);font:400 12.5px/1.55 var(--f-mono);padding:14px 14px;overflow:hidden;display:flex;flex-direction:column;gap:2px;min-width:0}
-.log .hd{color:var(--log-dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
-.log .ln{white-space:pre-wrap;word-break:break-word;animation:fadein .25s ease both}
-.log .ln .p{color:var(--log-dim)}
-.log .ln.sk{color:#fff}.log .ln.sk b{color:var(--cl);font-weight:500}
-.log .ln.ok{color:#8fd6a8}.log .ln.no{color:#f0a37f}
-.log .ln.old{opacity:.45}
-.cursor{display:inline-block;width:7px;height:13px;background:var(--log-ink);vertical-align:-2px;animation:blink 1s steps(1) infinite}
-@keyframes blink{50%{opacity:0}}
+.loaded{display:grid;gap:6px}
+.loaded .lh{display:flex;justify-content:space-between;font:600 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.loaded .lh b{color:var(--ink);font-weight:600}
+.meter{height:3px;border-radius:2px;background:var(--soft);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--c);width:0;transition:width .6s ease}
+.chips{display:flex;flex-wrap:wrap;gap:4px;min-height:24px}
+.chip{font:500 11.5px/1.2 var(--f-mono);padding:4px 7px;border-radius:6px;border:1px solid color-mix(in srgb,var(--c) 35%,var(--line));color:var(--ink2);background:var(--panel);animation:pop .4s cubic-bezier(.2,.9,.3,1.3) both}
+.chip.live{background:var(--c);border-color:var(--c);color:#fff}
+@keyframes pop{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:none}}
 
 /* timeline */
-.tl{grid-column:1/-1;border-top:1px solid var(--line);padding:10px 16px 12px;display:grid;gap:8px}
-.phases{display:flex;gap:4px;align-items:center;flex-wrap:wrap;font:600 12px var(--f-mono);letter-spacing:.04em;text-transform:uppercase}
-.phases span{padding:3px 8px;border-radius:4px;color:var(--muted);border:1px solid var(--line);transition:all .3s}
+.s-foot{grid-column:1/-1;border-top:1px solid var(--line);padding:10px 16px 12px;display:grid;gap:8px;background:var(--paper)}
+.phases{display:flex;gap:4px;align-items:center;flex-wrap:wrap;font:600 11.5px var(--f-mono);letter-spacing:.05em;text-transform:uppercase}
+.phases span{padding:3px 8px;border-radius:5px;color:var(--muted);border:1px solid var(--line);transition:all .3s}
 .phases span.on{background:var(--c);color:#fff;border-color:var(--c)}
 .phases span.done{color:var(--ink)}
 .phases i{color:var(--muted);font-style:normal}
 .dots{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px}
-.dots button{height:22px;border:0;padding:0;background:transparent;cursor:pointer;position:relative}
-.dots button::before{content:"";position:absolute;left:0;right:0;top:9px;height:4px;border-radius:2px;background:var(--line)}
+.dots button{height:20px;border:0;padding:0;background:transparent;cursor:pointer;position:relative}
+.dots button::before{content:"";position:absolute;left:0;right:0;top:8px;height:4px;border-radius:2px;background:var(--line)}
 .dots button.done::before{background:color-mix(in srgb,var(--c) 55%,var(--line))}
-.dots button .fill{position:absolute;left:0;top:9px;height:4px;border-radius:2px;background:var(--c);width:0}
+.dots button .fill{position:absolute;left:0;top:8px;height:4px;border-radius:2px;background:var(--c);width:0}
 .dots button.cur .fill{animation:fill linear forwards;animation-duration:var(--dur)}
 .paused .dots button.cur .fill{animation-play-state:paused}
 @keyframes fill{to{width:100%}}
 
-/* ---------- skills catalogue ---------- */
-.filters{display:flex;gap:6px;flex-wrap:wrap}
-.filters button{font:600 13.5px var(--f-body);border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:5px 12px;border-radius:999px;cursor:pointer}
+/* ---------- skills ---------- */
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:22px}
+.filters button{font:600 14px var(--f-body);border:1px solid var(--line);background:var(--panel);padding:6px 14px;border-radius:999px;cursor:pointer}
 .filters button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.role{display:grid;gap:10px}
-.role>.rh{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
-.role>.rh .n{color:var(--muted);font-size:14px}
-.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:10px}
-.skc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;align-items:start;cursor:pointer;text-align:left;font:inherit;color:inherit;transition:opacity .3s,border-color .2s}
-.skc:hover{border-color:var(--muted)}
-.skc.dim{opacity:.28}
-.skc .th{width:64px;height:64px;border-radius:7px;background:var(--soft);overflow:hidden;display:grid;place-items:center;color:var(--muted);font:600 11px var(--f-mono)}
+.roles{display:grid;gap:34px}
+.role .rh{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.role .rh h3{font:500 21px var(--f-serif)}
+.role .rh .n{color:var(--muted);font:400 13px var(--f-mono)}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.skc{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px;align-items:start;cursor:pointer;text-align:left;transition:opacity .3s,border-color .2s,transform .2s,box-shadow .2s}
+.skc:hover{border-color:var(--muted);transform:translateY(-2px);box-shadow:var(--shadow)}
+.skc.dim{opacity:.25}
+.skc .th{width:64px;height:64px;border-radius:9px;background:var(--soft);overflow:hidden;display:grid;place-items:center;color:var(--muted);font:600 11px var(--f-mono)}
 .skc .th img{width:100%;height:100%;object-fit:cover}
-.skc .nm{font-weight:600;font-size:15.5px;line-height:1.25}
+.skc .nm{font-weight:600;font-size:16px;line-height:1.25}
 .skc .id{font:400 11.5px var(--f-mono);color:var(--muted);word-break:break-all}
-.skc .ds{font-size:14px;color:var(--muted);margin-top:4px}
-.skc .use{display:flex;gap:4px;margin-top:6px}
+.skc .ds{font-size:14.5px;color:var(--ink2);margin-top:5px;display:block}
+.skc .use{display:flex;gap:4px;margin-top:8px}
 .skc .use span{font:600 10.5px var(--f-mono);padding:1px 6px;border-radius:4px;border:1px solid currentColor}
-.skc .more{display:none;font-size:14px;margin-top:6px;color:var(--ink)}
+.skc .more{display:none;font-size:14.5px;margin-top:8px;color:var(--ink);border-top:1px dashed var(--line);padding-top:8px}
 .skc[aria-expanded="true"] .more{display:block}
 .u-t{color:var(--tab)}.u-r{color:var(--room)}.u-l{color:var(--land)}
+.anatomy{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:20px;margin-bottom:40px;align-items:stretch}
+.md{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;font:400 13.5px/1.7 var(--f-mono);color:var(--ink2);box-shadow:var(--shadow);overflow:auto}
+.md .fm{color:var(--muted)}
+.md .key{color:var(--accent)}
+.md .h{color:var(--ink);font-weight:600}
+.anat-text{display:grid;gap:14px;align-content:center}
+.anat-text .pt{display:grid;grid-template-columns:28px 1fr;gap:12px;align-items:start}
+.anat-text .pt b{font:500 13px var(--f-mono);color:var(--muted);padding-top:3px}
+.anat-text .pt p{color:var(--ink2)}
+.anat-text .pt p strong{color:var(--ink);font-weight:600}
 
-/* ---------- transfer story ---------- */
-.flow{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:18px}
-.fsteps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.fs{border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:8px;align-content:start;background:var(--bg);opacity:.4;transition:opacity .5s,border-color .5s}
-.fs.on{opacity:1;border-color:var(--c)}
-.fs .fig{aspect-ratio:4/3}
-.fs p{font-size:14.5px}
-.fs .st{font:600 11px var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--c)}
-.bars{display:grid;gap:10px}
-.bar{display:grid;grid-template-columns:90px minmax(0,1fr) 110px;gap:10px;align-items:center;font-size:14px;font-variant-numeric:tabular-nums}
-.bar .track{position:relative;height:18px;background:var(--soft);border-radius:4px;overflow:hidden}
-.bar .b0,.bar .b1{position:absolute;left:0;top:0;bottom:0;border-radius:4px;transition:width 1.4s cubic-bezier(.2,.7,.2,1)}
+/* ---------- learning ---------- */
+.learn{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:26px;align-items:start}
+.thread{background:var(--paper);border:1px solid var(--line);border-radius:20px;padding:22px 20px;display:flex;flex-direction:column;gap:16px;box-shadow:var(--shadow)}
+.thread .t-h{font:500 12.5px var(--f-mono);color:var(--muted);display:flex;justify-content:space-between}
+.thread .msg{opacity:0;animation:none}
+.thread.in .msg{animation:rise .6s cubic-bezier(.2,.7,.2,1) both}
+.thread .say{padding-left:30px}
+.thread .figs{margin-left:30px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.learn>*{min-width:0}
+.thread .figs .fig{aspect-ratio:4/3;border:1px solid var(--line)}
+.verdict{margin-left:30px;display:inline-flex;gap:8px;align-items:center;font:600 12.5px var(--f-mono);padding:5px 10px;border-radius:8px;width:fit-content;max-width:calc(100% - 30px)}
+.verdict.ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,transparent)}
+.verdict.no{color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent)}
+.evidence{display:grid;gap:18px}
+.chart{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;display:grid;gap:14px}
+.chart h3{font:500 20px var(--f-serif)}
+.chart .cs{color:var(--muted);font-size:14.5px;margin-top:-8px}
+.bars{display:grid;gap:12px}
+.bar{display:grid;grid-template-columns:76px minmax(0,1fr) 112px;gap:12px;align-items:center;font-size:14.5px;font-variant-numeric:tabular-nums}
+.bar .track{position:relative;height:20px;background:var(--soft);border-radius:5px;overflow:hidden}
+.bar .b0,.bar .b1{position:absolute;left:0;top:0;bottom:0;border-radius:5px;transition:width 1.4s cubic-bezier(.2,.7,.2,1)}
 .bar .b0{background:color-mix(in srgb,var(--room) 30%,var(--soft))}
 .bar .b1{background:var(--room);width:0}
 .bar .num{font:500 13px var(--f-mono);text-align:right}
 .legend{display:flex;gap:16px;font-size:13.5px;color:var(--muted);flex-wrap:wrap}
 .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
-.side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.note{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--panel);display:grid;gap:6px}
-.note .big{font:700 26px var(--f-display);font-variant-numeric:tabular-nums}
-.note p{font-size:14.5px;color:var(--muted)}
-.foot{color:var(--muted);font-size:13.5px;max-width:90ch}
+.notes{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.note{border:1px solid var(--line);border-radius:14px;padding:16px;background:var(--panel);display:grid;gap:4px;align-content:start}
+.note .e{font:500 11.5px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.note .big{font:500 30px/1.15 var(--f-serif);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.note p{font-size:14.5px;color:var(--ink2)}
 
+/* ---------- results ---------- */
+.counts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:22px}
+.count{border-top:1px solid var(--ink);padding-top:10px}
+.count .n{font:400 44px/1 var(--f-serif);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.count .l{font-size:14.5px;color:var(--ink2);margin-top:6px}
+.count .l span{display:block;font:400 12.5px var(--f-mono);color:var(--muted)}
+.marquee{position:relative;overflow:hidden;display:grid;gap:12px;padding:6px 0;mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+.track2{display:flex;gap:12px;width:max-content;animation:slide 70s linear infinite}
+.track2.rev{animation-direction:reverse;animation-duration:85s}
+.marquee:hover .track2{animation-play-state:paused}
+@keyframes slide{to{transform:translateX(-50%)}}
+.tile{width:210px;aspect-ratio:4/3;border-radius:12px;background:var(--panel);border:1px solid var(--line);display:grid;place-items:center;overflow:hidden;text-decoration:none;position:relative;flex:none}
+.tile img{width:100%;height:100%;object-fit:contain}
+.tile span{position:absolute;left:6px;bottom:6px;font:500 11px var(--f-mono);color:var(--ink2);background:color-mix(in srgb,var(--panel) 88%,transparent);padding:1px 6px;border-radius:4px}
+.results-cta{display:flex;justify-content:center;margin-top:26px}
+
+/* ---------- video ---------- */
+.video{border-radius:18px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:#000;aspect-ratio:16/9}
+.video video{width:100%;height:100%;display:block}
+
+footer{margin-top:110px;border-top:1px solid var(--line);padding:28px 0 56px;color:var(--muted);font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+footer a{color:var(--ink2)}
+
+/* ---------- responsive ---------- */
 @media (max-width:1060px){
-  .player{grid-template-columns:minmax(0,1fr);grid-template-rows:auto}
-  .lib{border-right:0;border-bottom:1px solid var(--line);grid-template-columns:1fr 2fr;gap:12px}
-  .log{max-height:200px}
-  .fsteps{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .session{grid-template-columns:minmax(0,1fr)}
+  .chat{border-right:0;border-top:1px solid var(--line);order:3}
+  .ws{order:2}
+  .s-foot{order:4}
+  .chat-scroll{height:440px}
+  .learn,.anatomy,.hero-top{grid-template-columns:minmax(0,1fr)}
+  .teaser{max-width:560px}
+  .nav ul{display:none}
 }
-@media (max-width:620px){
-  .lib{grid-template-columns:1fr}
-  .stage{padding:12px;min-height:0}
-  .canvas{min-height:300px;aspect-ratio:auto}
-  .g2,.g3,.g21,.g12{grid-template-columns:1fr 1fr}
-  .fsteps,.side{grid-template-columns:1fr}
-  .bar{grid-template-columns:70px minmax(0,1fr) 92px}
+@media (max-width:700px){
+  .hero{padding-top:36px;gap:32px}
+  .ladder{grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .rung .cap{flex-direction:column;gap:0;font-size:13px}
+  .rung .cap span{text-align:left;font-size:11px}
+  .ch-head{grid-template-columns:minmax(0,1fr)}
+  .ch-num{width:max-content;padding-right:18px}
+  .ch-head .lede{grid-column:1}
+  .chapter{padding-top:72px}
+  .canvas{min-height:300px}
+  .g3{grid-template-columns:1fr 1fr}
+  .notes,.counts{grid-template-columns:1fr 1fr}
+  .bar{grid-template-columns:64px minmax(0,1fr) 96px}
+  .s-top{padding:10px 12px}
+  .ws{padding:12px}
+  .chat-scroll{padding:16px 12px 22px}
+  .tile{width:160px}
 }
 @media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
   .wipe .top{clip-path:inset(0 50% 0 0)!important}.wipe .bar{left:50%!important}
+  .reveal{opacity:1;transform:none}
+  .thread .msg{opacity:1}
 }
 </style>
 </head>
 <body>
 
+<nav class="nav" id="nav" aria-label="Sections">
+  <div class="wrap">
+    <a class="brand" href="#top">Agentic 3D Reconstruction <i>across scales</i></a>
+    <ul>
+      <li><a href="#session">The conversation</a></li>
+      <li><a href="#skills">Skills</a></li>
+      <li><a href="#learning">Learning</a></li>
+      <li><a href="#results">Results</a></li>
+      <li><a href="#video">Video</a></li>
+    </ul>
+  </div>
+  <div class="prog" id="prog"></div>
+</nav>
 
-<div class="wrap">
-<header class="top">
-  <div class="eyebrow">Supplementary material · interactive</div>
-  <h1>How the reconstruction agent works</h1>
-  <p class="lede">A coding agent turns photographs into an editable Blender scene. It picks a policy from a library, calls reusable skills and geometric tools, and revises the scene until visual, geometric and physical checks pass. Press play to follow one run in each domain: a <span class="dom-t">single-image tabletop</span>, a <span class="dom-r">multi-view room</span>, and an <span class="dom-l">outdoor landmark</span>.</p>
-<p class="lede" style="font-size:16px"><a href="gallery.html" style="color:var(--accent);font-weight:600">See all 66 reconstructions →</a></p>
+<main id="top">
+<header class="wrap hero">
+  <div class="hero-top">
+  <div>
+    <div class="kicker">Supplementary material</div>
+    <h1>Photographs in. <em>An editable scene</em> out.</h1>
+    <p class="sub">A coding agent takes the photos, picks a policy from its library, calls <b>reusable skills</b> and geometric tools, and keeps revising a Blender scene until visual, geometric and physical checks pass. The same agent and skill library work from a single photo of a table up to Internet photos of a monument.</p>
+    <div class="cta">
+      <a class="btn primary" href="#session"><svg viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5v11l9-5.5z"/></svg>Follow a run</a>
+      <a class="btn" href="#video">Watch the video</a>
+      <a class="btn" href="gallery.html">All 66 reconstructions →</a>
+    </div>
+  </div>
+  <div class="teaser" aria-label="Example of a session">
+    <div class="t-bar"><span class="live"></span>session · room · scene 05</div>
+    <div class="msg user"><div class="who"><span class="av user">You</span>You</div>
+      <div class="attach"><img src="assets/s05-photo.jpg" alt="Input photo of the room"><span class="more">+ more views</span></div>
+      <div class="bubble">This is an ordered capture of a room. Rebuild it in Blender.</div></div>
+    <div class="msg"><div class="who"><span class="av agent"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 1.5l4.8 2.75v5.5L7 12.5 2.2 9.75v-5.5z"/></svg></span>Agent</div>
+      <p class="say">Ordered room captures go to the <b>indoor › SCRREAM</b> policy. Writing the task policy for this room.</p>
+      <div class="calls">
+        <div class="call skill" style="--i:0"><span class="ic"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 1.5h4.5L10 4v6.5H3z"/><path d="M7.5 1.5V4H10"/></svg></span><span><span class="k">Skill</span> task-policy-first</span><span class="st">loaded</span></div>
+        <div class="call skill" style="--i:1"><span class="ic"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 1.5h4.5L10 4v6.5H3z"/><path d="M7.5 1.5V4H10"/></svg></span><span><span class="k">Skill</span> recon-intake-evidence</span><span class="st">loaded</span></div>
+        <div class="call tool" style="--i:2"><span class="ic"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7.5 1.8a2.6 2.6 0 0 0-2.9 3.5L1.6 8.3a1 1 0 0 0 1.4 1.4l3-3a2.6 2.6 0 0 0 3.5-2.9L8 5.3 6.6 5.4 6.7 4z"/></svg></span><span><span class="k">Tool</span> gaussian splatting → shared frame</span><span class="st"><span class="spin"></span></span></div>
+      </div></div>
+  </div>
+  </div>
+  <div class="ladder" id="ladder">
+    <figure class="rung" style="--c:var(--tab);margin:0">
+      <div class="pic"><img src="assets/table-output.png" alt="Reconstructed tabletop with a laptop, plush toy and small objects"></div>
+      <figcaption class="cap"><b><i class="sw"></i>Tabletop</b><span>one RGB photo</span></figcaption>
+    </figure>
+    <figure class="rung" style="--c:var(--room);margin:0">
+      <div class="pic"><img src="assets/s05-output.png" alt="Reconstructed room from SCRREAM scene 05 with furniture"></div>
+      <figcaption class="cap"><b><i class="sw"></i>Room</b><span>multi-view capture</span></figcaption>
+    </figure>
+    <figure class="rung" style="--c:var(--land);margin:0">
+      <div class="pic"><img src="assets/arc-latest.png" alt="Reconstructed Arc de Triomphe"></div>
+      <figcaption class="cap"><b><i class="sw"></i>Landmark</b><span>Internet photos</span></figcaption>
+    </figure>
+    <div class="ladder-axis" aria-hidden="true"><span>scale</span></div>
+  </div>
 </header>
 
-<section aria-label="Run player" style="padding-top:24px">
-<div class="player" id="player">
-  <div class="p-head">
-    <div class="tabs" role="group" aria-label="Domain">
-      <button id="tab-t" data-d="t" style="--c:var(--tab)"><span class="sw"></span>Tabletop</button>
-      <button id="tab-r" data-d="r" style="--c:var(--room)"><span class="sw"></span>Room</button>
-      <button id="tab-l" data-d="l" style="--c:var(--land)"><span class="sw"></span>Landmark</button>
-    </div>
-    <div class="ctrl">
-      <button id="b-prev" aria-label="Previous step">&#9664;</button>
-      <button id="b-play" aria-label="Pause">Pause</button>
-      <button id="b-next" aria-label="Next step">&#9654;</button>
-      <button id="b-full" aria-label="Full screen">Full screen</button>
-    </div>
+<!-- ============ 01 conversation ============ -->
+<section class="chapter wrap" id="session" aria-label="Agent session">
+  <div class="ch-head reveal">
+    <div class="ch-num">01 · The conversation</div>
+    <h2>Every reconstruction is <em>a conversation</em> with an agent.</h2>
+    <p class="lede">You send photographs and a request. On the left, the agent explains what it is doing, loads skills and calls tools. On the right is what it is looking at right now. Choose a scene type, or let the three sessions play one after another.</p>
   </div>
-  <aside class="lib" aria-label="Library">
-    <div><h4>Policy library</h4>
-      <div class="ptree" id="ptree">
-        <div class="fam">Indoor</div>
-        <div class="pol" data-p="room">Rooms (SCRREAM)</div>
-        <div class="pol" data-p="tab">Tabletops (single image)</div>
-        <div class="fam">Outdoor</div>
-        <div class="pol" data-p="land">Landmarks</div>
-        <div class="pol" data-p="church">Churches</div>
+
+  <div class="session reveal" id="player" tabindex="-1">
+    <div class="s-top">
+      <div class="s-id"><span class="live"></span><span id="s-name">session · tabletop</span></div>
+      <div class="tabs" role="group" aria-label="Scene type">
+        <button id="tab-t" data-d="t" style="--cc:var(--tab)"><span class="sw"></span>Tabletop</button>
+        <button id="tab-r" data-d="r" style="--cc:var(--room)"><span class="sw"></span>Room</button>
+        <button id="tab-l" data-d="l" style="--cc:var(--land)"><span class="sw"></span>Landmark</button>
+      </div>
+      <div class="ctrl">
+        <button id="b-prev" aria-label="Previous step"><svg viewBox="0 0 12 12" fill="currentColor"><path d="M9 1.5v9L2.5 6z"/></svg></button>
+        <button id="b-play" aria-label="Pause">Pause</button>
+        <button id="b-next" aria-label="Next step"><svg viewBox="0 0 12 12" fill="currentColor"><path d="M3 1.5v9L9.5 6z"/></svg></button>
       </div>
     </div>
-    <div><h4>Skill library · 22</h4><div class="skl" id="chips"></div></div>
-  </aside>
-  <div class="stage">
-    <div class="s-title"><span class="ph" id="s-ph">Plan</span><h3 id="s-h">—</h3><p class="sub" id="s-sub"></p></div>
-    <div class="canvas" id="canvas"></div>
+    <div class="chat"><div class="chat-scroll" id="chat" aria-live="off"></div></div>
+    <div class="ws">
+      <div class="ws-head">
+        <div class="row"><span class="ph" id="s-ph">Plan</span><span class="route" id="s-route"></span></div>
+        <h3 id="s-h">—</h3>
+      </div>
+      <div class="canvas" id="canvas"></div>
+      <div class="loaded">
+        <div class="lh"><span>Skills loaded this session</span><span><b id="s-n">0</b> / 22</span></div>
+        <div class="meter"><i id="s-meter"></i></div>
+        <div class="chips" id="chips"></div>
+      </div>
+    </div>
+    <div class="s-foot">
+      <div class="phases" id="phases"></div>
+      <div class="dots" id="dots"></div>
+    </div>
   </div>
-  <div class="log" id="log" aria-live="off"><div class="hd">Agent log</div></div>
-  <div class="tl">
-    <div class="phases" id="phases"></div>
-    <div class="dots" id="dots"></div>
-  </div>
-</div>
-<p class="foot">Images are actual intermediate outputs from released runs. Log lines are a simplified view of the agent's steps; failures shown in red illustrate when the review loop triggers a revision.</p>
+  <p class="foot">Images are actual intermediate outputs from released runs. The transcript is a simplified view of the agent's steps; red lines show where a review check failed and triggered a revision. The tabletop and room sessions follow one run each (the room is SCRREAM scene 05). The landmark session combines steps from several landmark runs, labelled on each image.</p>
 </section>
 
-<section id="skills">
-  <div class="eyebrow">The reusable skills</div>
-  <h2>22 skills, shared across policies</h2>
-  <p class="lede">A policy lists the steps for a class of scenes. A skill is a reusable procedure, saved as a <code>SKILL.md</code> file: when it applies, which tools it calls, how its output is checked, and where it came from. Policies point to skills instead of copying them, so the same skill can serve a tabletop, a room and a landmark. Click a card for details. Filter to see which skills a domain uses.</p>
-  <div class="filters" role="group" aria-label="Filter by domain">
-    <button id="f-all" data-f="all" aria-pressed="true">All</button>
-    <button id="f-t" data-f="t" aria-pressed="false">Tabletop</button>
-    <button id="f-r" data-f="r" aria-pressed="false">Room</button>
-    <button id="f-l" data-f="l" aria-pressed="false">Landmark</button>
+<!-- ============ 02 skills ============ -->
+<section class="chapter wrap" id="skills">
+  <div class="ch-head reveal">
+    <div class="ch-num">02 · The skills</div>
+    <h2>Twenty-two skills, <em>written once</em> and shared.</h2>
+    <p class="lede">A policy lists the steps for a class of scenes. A skill is a reusable procedure saved as a <code>SKILL.md</code> file. Policies point to skills instead of copying them, so one skill can serve a tabletop, a room and a landmark.</p>
   </div>
-  <div id="catalog" style="display:grid;gap:26px"></div>
-  <p class="foot">Names and descriptions come from the front matter of each <code>skills/*/SKILL.md</code> in release <code>v-20261108</code>; grouping follows the supplement's skill table. Domain tags show typical use under the released policies; the task policy decides applicability for each run.</p>
+
+  <div class="anatomy reveal">
+    <pre class="md" aria-label="Excerpt of SKILL.md"><span class="fm">---</span>
+<span class="key">name</span>: recon-isaacsim-physics
+<span class="key">description</span>: Run mandatory desktop-style
+  Blender Bullet checks for indoor reconstruction,
+  [...] Preserve all-body coverage, source-bound
+  support/contact evidence and simulation-tested
+  pose refinement; simulation does not establish
+  photo accuracy [...]
+<span class="fm">---</span>
+
+<span class="h"># Physics-grounded reconstruction</span>
+
+<span class="h">## Required indoor default — user adoption 2026-11-04</span>
+Default executable: `indoor_physics.py verify` →
+saved-file `blender_physics_check.py` in CPU Slurm.
+Check [...] the actual final delivery file, with
+every physical instance [...]
+Actual close visual/photo inspection is mandatory
+regardless of numeric success.
+
+<span class="h">## Bind the physical scene</span>
+<span class="h">## Initialize and refine with feedback</span>
+<span class="h">## Select the correct executable/protocol</span>
+<span class="h">## Evidence and validation</span></pre>
+    <div class="anat-text">
+      <div class="pt"><b>01</b><p><strong>When it applies.</strong> The front matter says what the skill is for, so the agent can decide when to load it.</p></div>
+      <div class="pt"><b>02</b><p><strong>Which tools it calls.</strong> The skill names the actual executable, so the agent runs the pinned simulator instead of guessing poses or dynamics.</p></div>
+      <div class="pt"><b>03</b><p><strong>How the output is checked.</strong> Every physical instance in the saved file is checked, and close visual inspection is required even when the numbers pass.</p></div>
+      <div class="pt"><b>04</b><p><strong>Where it came from.</strong> Dated sections record when a rule was adopted and why. This skill's history is the story in chapter 03.</p></div>
+      <p class="foot" style="margin-top:0">Excerpt from <code>skills/recon-isaacsim-physics/SKILL.md</code> (117 lines); <code>[...]</code> marks omissions.</p>
+    </div>
+  </div>
+
+  <div class="filters reveal" role="group" aria-label="Filter by scene type">
+    <button data-f="all" aria-pressed="true">All 22</button>
+    <button data-f="t" aria-pressed="false">Tabletop</button>
+    <button data-f="r" aria-pressed="false">Room</button>
+    <button data-f="l" aria-pressed="false">Landmark</button>
+  </div>
+  <div class="roles" id="catalog"></div>
+  <p class="foot">Names and descriptions come from the front matter of each <code>skills/*/SKILL.md</code> in release <code>v-20261108</code>; grouping follows the supplement's skill table. Tags show typical use under the released policies; the task policy decides which skills apply in each run. Click a card for details.</p>
 </section>
 
-<section id="transfer">
-  <div class="eyebrow">Learning from experience</div>
-  <h2>A skill learned on tabletops, reused in rooms</h2>
-  <p class="lede">After each run the agent keeps its record of failed checks, attempted fixes and outcomes. A recurring failure can lead it to propose a new skill. Candidates are tested end to end before they enter the library.</p>
-  <div class="flow" id="flow" style="--c:var(--room)">
-    <div class="fsteps">
-      <div class="fs" style="--c:var(--tab)"><span class="st">1 · Failure</span><div class="fig white"><img src="assets/table-contact.jpg" alt="Close view of a plush toy resting on a tabletop" loading="lazy"></div><p>A tabletop scene passes an external physics check, but objects in the saved Blender file are not supported correctly.</p></div>
-      <div class="fs" style="--c:var(--tab)"><span class="st">2 · Proposal</span><div class="fig white"><img src="assets/shared-physics.jpg" alt="Contact close views used by the physics check" loading="lazy"></div><p>The agent proposes and implements <b>saved-state support/physics</b>: reopen the saved file, simulate 5 s in Bullet, check every body.</p></div>
-      <div class="fs"><span class="st">3 · Reuse</span><div class="fig white"><img src="assets/room-support.jpg" alt="Chair leg resting on a parquet floor in the reconstructed room" loading="lazy"></div><p>Rooms have the same support requirements, so the room policy references the skill without copying it.</p></div>
-      <div class="fs"><span class="st">4 · Measured</span>
+<!-- ============ 03 learning ============ -->
+<section class="chapter wrap" id="learning">
+  <div class="ch-head reveal">
+    <div class="ch-num">03 · Learning</div>
+    <h2>A skill learned on tabletops, <em>reused in rooms</em>.</h2>
+    <p class="lede">After each run the agent keeps a record of failed checks, attempted fixes and outcomes. A recurring failure can lead it to propose a new skill. Each candidate is tested end to end before it enters the library.</p>
+  </div>
+
+  <div class="learn">
+    <div class="thread" id="thread" style="--c:var(--tab)">
+      <div class="t-h"><span>retrospective · issue ledger</span><span>tabletop → room</span></div>
+      <div class="msg" style="animation-delay:.1s"><div class="who"><span class="av agent"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 1.5l4.8 2.75v5.5L7 12.5 2.2 9.75v-5.5z"/></svg></span>Agent · run record</div>
+        <p class="say">This tabletop passed the external physics check, but objects in the <b>saved Blender file</b> are not supported correctly.</p>
+        <div class="figs"><div class="fig white"><img src="assets/table-contact.jpg" alt="Close view of a plush toy resting on a tabletop" loading="lazy"><span class="tag">contact close view</span></div><div class="fig white"><img src="assets/shared-physics.jpg" alt="Contact close views used by the physics check" loading="lazy"><span class="tag">physics views</span></div></div>
+      </div>
+      <div class="msg" style="animation-delay:.9s"><div class="who"><span class="av agent"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 1.5l4.8 2.75v5.5L7 12.5 2.2 9.75v-5.5z"/></svg></span>Agent · proposal</div>
+        <p class="say">Proposing a new skill, <b>saved-state support/physics</b>: reopen the saved file, simulate 5 s in Bullet, check every body.</p>
+        <span class="verdict ok">✓ tested end to end → added to the library</span>
+      </div>
+      <div class="msg" style="animation-delay:1.7s;--c:var(--room)"><div class="who"><span class="av agent" style="background:var(--room)"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 1.5l4.8 2.75v5.5L7 12.5 2.2 9.75v-5.5z"/></svg></span>Agent · room run</div>
+        <p class="say">Rooms have the same support requirements. The room policy points to the skill instead of copying it.</p>
+        <div class="figs"><div class="fig white"><img src="assets/room-support.jpg" alt="Chair leg resting on a parquet floor in the reconstructed room" loading="lazy"><span class="tag">chair leg on floor</span></div><div class="fig white"><img src="assets/s05-foot.jpg" alt="Foot contact in SCRREAM scene 05" loading="lazy"><span class="tag">foot contact</span></div></div>
+      </div>
+      <div class="msg" style="animation-delay:2.5s"><div class="who"><span class="av agent"><svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 1.5l4.8 2.75v5.5L7 12.5 2.2 9.75v-5.5z"/></svg></span>Agent · another candidate</div>
+        <p class="say">A reimplemented REST3D support-tree candidate overlapped existing support handling and showed no benefit.</p>
+        <span class="verdict no">✗ rejected → not added</span>
+      </div>
+    </div>
+
+    <div class="evidence">
+      <div class="chart reveal" id="flow">
+        <h3>Object stability on SCRREAM</h3>
+        <p class="cs">Share of stable objects, before and after the room policy adopted the skill.</p>
         <div class="bars" id="bars"></div>
         <div class="legend"><span><i style="background:color-mix(in srgb,var(--room) 30%,var(--soft))"></i>before</span><span><i style="background:var(--room)"></i>with skill</span></div>
       </div>
+      <div class="notes">
+        <div class="note reveal"><span class="e">Transfer on SCRREAM</span><span class="big">+77.6 pts</span><p>Mean stability gain on three rooms, with geometry and camera accuracy nearly unchanged (F-score +0.027, camera error +0.1).</p></div>
+        <div class="note reveal"><span class="e">HoloScene ablation</span><span class="big">+47.5 pts</span><p>Mean stability gain on two unseen rooms (93.5% vs 39.1% and 60.5% vs 19.8% stable).</p></div>
+        <div class="note reveal"><span class="e">New dataset</span><span class="big">−32.0% / −29.0%</span><p>Recorded tokens on two four-scene GraspClutter6D sequences when the agent revises its own policy and skills, compared with a frozen library.</p></div>
+        <div class="note reveal"><span class="e">Not every candidate is kept</span><span class="big">Rejected</span><p>Candidates that show no benefit in testing do not enter the library.</p></div>
+      </div>
     </div>
   </div>
-  <div class="side">
-    <div class="note"><span class="eyebrow">Controlled HoloScene ablation</span><span class="big">+47.5 pts</span><p>Mean gain in object stability from the support/physics skill on two unseen rooms (93.5% vs 39.1% and 60.5% vs 19.8% stable).</p></div>
-    <div class="note"><span class="eyebrow">Adapting on a new dataset</span><span class="big">−32.0% / −29.0%</span><p>Recorded tokens over two four-scene GraspClutter6D sequences when the agent revises its own policy and skills, versus a frozen library.</p></div>
-    <div class="note"><span class="eyebrow">Not every candidate is kept</span><span class="big">Rejected</span><p>A reimplemented REST3D support-tree candidate overlapped existing support handling and showed no benefit, so it did not enter the library.</p></div>
-    <div class="note"><span class="eyebrow">Transfer on SCRREAM</span><span class="big">+77.6 pts</span><p>Mean stability gain on three rooms, with geometry and camera accuracy nearly unchanged (F-score +0.027, camera error +0.1).</p></div>
-  </div>
 </section>
-</div>
+
+<!-- ============ 04 results ============ -->
+<section class="chapter wrap" id="results">
+  <div class="ch-head reveal">
+    <div class="ch-num">04 · Results</div>
+    <h2>Sixty-six deliveries, <em>from one agent</em>.</h2>
+    <p class="lede">Every final scene from the paper, rendered from its saved Blender file. Open the gallery to compare each one with its input photo, along with token and GPU-hour costs.</p>
+  </div>
+  <div class="counts reveal">
+    <div class="count" style="--c:var(--room)"><div class="n" data-n="11">11</div><div class="l">Rooms<span>SCRREAM</span></div></div>
+    <div class="count"><div class="n" data-n="35">35</div><div class="l">Tabletops<span>SceneRig benchmark</span></div></div>
+    <div class="count"><div class="n" data-n="14">14</div><div class="l">Landmarks<span>Doppelgangers</span></div></div>
+    <div class="count"><div class="n" data-n="6">6</div><div class="l">Transfer ablation<span>before / with skill</span></div></div>
+  </div>
+  <div class="marquee reveal" id="marquee"></div>
+  <div class="results-cta"><a class="btn primary" href="gallery.html">Open the gallery of all 66 →</a></div>
+</section>
+
+<!-- ============ 05 video ============ -->
+<section class="chapter wrap" id="video">
+  <div class="ch-head reveal">
+    <div class="ch-num">05 · Video</div>
+    <h2>The same three sessions, <em>in under three minutes</em>.</h2>
+    <p class="lede">A narrated walk-through of a tabletop, a room and a landmark run, with the skills the agent loads at each step.</p>
+  </div>
+  <div class="video reveal"><video controls preload="none" playsinline poster="media/poster.jpg"><source src="media/agent-workflow.mp4" type="video/mp4">Your browser cannot play this video. <a href="media/agent-workflow.mp4">Download it</a>.</video></div>
+</section>
+</main>
+
+<footer><div class="wrap"><span>Agentic 3D Reconstruction Across Scales · supplementary material</span><span><a href="#top">Back to top ↑</a> · <a href="gallery.html">Gallery</a> · <a href="media/agent-workflow.mp4">Video (mp4)</a></span></div></footer>
 
 <script>
 (function(){
 const A = n => 'assets/' + n;
+const $ = id => document.getElementById(id);
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const DC = {t:'var(--tab)', r:'var(--room)', l:'var(--land)'};
-const DCL = {t:'#e4b77a', r:'#9cc3e0', l:'#c2b2e2'};
+const AGENT_IC = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 1.5l4.8 2.75v5.5L7 12.5 2.2 9.75v-5.5z"/></svg>';
+const IC = {
+  skill:'<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 1.5h4.5L10 4v6.5H3z"/><path d="M7.5 1.5V4H10"/></svg>',
+  tool:'<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7.5 1.8a2.6 2.6 0 0 0-2.9 3.5L1.6 8.3a1 1 0 0 0 1.4 1.4l3-3a2.6 2.6 0 0 0 3.5-2.9L8 5.3 6.6 5.4 6.7 4z"/></svg>',
+  bl:'<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 1.5l4 2.2v4.6L6 10.5 2 8.3V3.7z"/><path d="M2 3.7l4 2.2 4-2.2M6 5.9v4.6"/></svg>',
+  nt:'<svg viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="1.6"/></svg>'
+};
 
 /* ---- skills (22, from SKILL.md front matter) ---- */
 const SK = [
- // role, id, name, short, more, use, thumb
  ['paired','recon-isaacsim-physics','Saved-state support/physics','Reopen the saved scene and simulate it in Bullet.','Simulate 5 s at 60 fps from the saved pose with finite supports and explicit colliders. Every dynamic object must stay within 5 cm translation, 5° rotation and 1 mm/s final speed. The settled pose is not adopted automatically. Learned on tabletops, later adopted by the room policy.','tr','shared-physics.jpg'],
  ['req','task-policy-first','Task policy','Write a compact task-specific policy before doing anything.','States input count and coverage, objective, semantic priors, tool and model roles, evidence gaps, stops and validation, adapted from the closest library policy.','trl',null],
  ['req','recon-intake-evidence','Input intake','Freeze the image manifest and pre-read every image.','Prepares a frozen image manifest and a per-image RGB/FFT pre-read before modeling, or when input coverage is questioned.','trl','table-mask-review.jpg'],
@@ -354,108 +645,117 @@ const SK = [
 const SKN = Object.fromEntries(SK.map(s=>[s[1],s[2]]));
 const ROLES = [['paired','Tested in a paired experiment'],['req','Required by the workflow'],['design','Design'],['tool','Tool interface'],['opt','Optional detail']];
 
-/* ---- run scripts ---- */
-// v: visual spec. log lines: [kind,text]; kind '' plain, 'sk' skill call, 'ok', 'no'
+/* ---- sessions ----
+   say: what the agent tells the user (first person, from the step description)
+   log: [kind,text]; kind '' plain, 'sk' skill, 'ok', 'no'
+   v:   what the workspace shows */
 const RUNS = {
-t:{pol:'tab', steps:[
- {ph:'Plan',h:'Read the photo, choose a policy',sub:'One RGB photo of a table. The agent routes it to the indoor family, single-image tabletop policy, and writes a task policy.',
+t:{pol:'tab', route:'indoor › tabletop (single image)', name:'tabletop',
+ user:{text:'Here is one photo of a tabletop. Rebuild it as an editable Blender scene.', imgs:['table-in.jpg']},
+ file:['tabletop.blend','editable Blender scene · verified after reopening'],
+ steps:[
+ {ph:'Plan',h:'Read the photo, choose a policy',say:'One RGB photo of a table. That is the <b>indoor › single-image tabletop</b> policy. I will adapt it into a task policy for this photo first.',
   sk:['task-policy-first','recon-intake-evidence'],
   v:{k:'policy',img:'table-in.jpg',items:['Infer source camera; MoGe-2 as prior','Reviewed SAM 3 masks → SAM 3D assets','Build worktop first, then hosts, then children','Same-view review + saved-state physics','Budget: five candidates']},
   log:[['','route: indoor › tabletop (single image)'],['sk','task-policy-first'],['sk','recon-intake-evidence'],['','1 image frozen in manifest']]},
- {ph:'Estimate',h:'Monocular geometry',sub:'MoGe-2 estimates depth, point map, normals and intrinsics. These initialize scale and the support plane; they stay priors.',
+ {ph:'Estimate',h:'Monocular geometry',say:'MoGe-2 gives me depth, a point map, normals and intrinsics. I use them to initialize scale and the support plane, but they stay <b>priors</b>.',
   sk:['recon-moge2-geometry'],v:{k:'wipe',a:'table-in.jpg',b:'table-depth.jpg',ta:'photo',tb:'MoGe-2 depth'},
   log:[['sk','recon-moge2-geometry'],['','tool MoGe-2 → depth, normals, K'],['','support plane fitted to worktop']]},
- {ph:'Estimate',h:'Objects and assets',sub:'SAM 3 finds each object; the agent reviews the masks. SAM 3D generates one asset per object.',
+ {ph:'Estimate',h:'Objects and assets',say:'SAM 3 finds each object and I review every mask. Then SAM 3D generates one asset per object.',
   sk:['recon-intake-evidence'],v:{k:'grid',cls:'g12',imgs:[['table-mask-overlay.jpg','SAM 3 masks'],['table-mask-review.jpg','mask review sheet']]},
   log:[['','tool SAM 3 → instance masks'],['','agent reviews every mask'],['','tool SAM 3D → native assets']]},
- {ph:'Build',h:'Support-first assembly in Blender',sub:'The agent writes Blender code: worktop and background first, then hosts, then the objects they support.',
+ {ph:'Build',h:'Support-first assembly in Blender',say:'Writing Blender code, <b>support first</b>: worktop and background, then the hosts, then the objects they support.',
   sk:['task-policy-first'],v:{k:'graph',img:'table-output.png',nodes:['Floor','Table','Laptop','Plush']},
   log:[['','blender: create finite worktop'],['','blender: place hosts, then children'],['','separate visual meshes and colliders']]},
- {ph:'Review',h:'Same-view and contact review',sub:'Render from the source camera, compare with the photo, and inspect contact close views at feet and bases.',
+ {ph:'Review',h:'Same-view and contact review',say:'Rendering from the source camera to compare with the photo, and checking contact close-ups at feet and bases.',
   sk:['recon-photo-fft-review'],loop:1,v:{k:'grid',cls:'g2',imgs:[['table-in.jpg','photo'],['table-contact.jpg','contact close view']]},
   log:[['sk','recon-photo-fft-review'],['','render @ source camera'],['','inspect base and foot contacts']]},
- {ph:'Review',h:'Saved-state physics check',sub:'Reopen the saved .blend and simulate 5 s in Bullet. Every dynamic body must stay put.',
+ {ph:'Review',h:'Saved-state physics check',say:'Now I reopen the <b>saved .blend</b> and simulate 5 s in Bullet. Every dynamic body has to stay put.',
   sk:['recon-isaacsim-physics'],loop:1,v:{k:'checks',img:'shared-physics.jpg',rows:[['translation','< 5 cm'],['rotation','< 5°'],['final speed','< 1 mm/s'],['angular speed','< 0.01 rad/s']]},
   log:[['sk','recon-isaacsim-physics'],['','bullet: 5 s @ 60 fps, 16 substeps'],['ok','all bodies within limits']]},
- {ph:'Save',h:'Freeze and verify the saved file',sub:'Select a candidate, reopen the saved .blend, re-render and re-check before delivery.',
-  sk:['recon-freeze-delivery'],v:{k:'img',img:'table-output.png',tag:'editable Blender scene',white:1},
+ {ph:'Save',h:'Freeze and verify the saved file',say:'Selecting a candidate. I reopen the saved file, re-render and re-check it before delivering.',
+  sk:['recon-freeze-delivery'],file:1,v:{k:'img',img:'table-output.png',tag:'editable Blender scene',white:1},
   log:[['sk','recon-freeze-delivery'],['','reopen .blend → re-render → ok'],['ok','delivered']]},
- {ph:'Record',h:'Record the run',sub:'Failed checks, fixes and outcomes go to the issue ledger. Recurring problems can become new or revised skills.',
+ {ph:'Record',h:'Record the run',say:'Writing the run record: failed checks, fixes and outcomes. Recurring problems can become new or revised skills.',
   sk:['recon-issue-ledger','recon-success-learning'],v:{k:'record',items:['failed checks and retries','fixes that worked','candidate skill updates → tested before adoption']},
   log:[['sk','recon-issue-ledger'],['sk','recon-success-learning'],['','record kept for future runs']]},
 ]},
-r:{pol:'room', steps:[
- {ph:'Plan',h:'Read the capture, choose a policy',sub:'Ordered room captures route to the indoor family and the SCRREAM specialization. The agent writes a task policy.',
+r:{pol:'room', route:'indoor › SCRREAM rooms', name:'room · scene 05',
+ user:{text:'This is an ordered capture of a room, SCRREAM scene 05. Rebuild it in Blender.', imgs:['s05-photo.jpg'], more:'+ more views'},
+ file:['scene05.blend','editable Blender room · verified after reopening'],
+ steps:[
+ {ph:'Plan',h:'Read the capture, choose a policy',say:'Ordered room captures go to the <b>indoor › SCRREAM</b> policy. Writing the task policy for this room.',
   sk:['task-policy-first','recon-intake-evidence'],
   v:{k:'policy',img:'s05-photo.jpg',items:['Cameras + Gaussian scene in one frame','20 views → SAM 3 → instance registry','Backproject masks; register SAM 3D assets','Room shell → hosts → supported objects','Same-view review, projection gate, physics']},
   log:[['','route: indoor › SCRREAM rooms'],['sk','task-policy-first'],['sk','recon-intake-evidence']]},
- {ph:'Estimate',h:'Cameras and a Gaussian scene',sub:'Train a Gaussian scene over all eligible views in the saved camera frame, then pick twenty representative views.',
+ {ph:'Estimate',h:'Cameras and a Gaussian scene',say:'Training a Gaussian scene over all eligible views, in the saved camera frame. Then I pick twenty representative views.',
   sk:['recon-camera-program','recon-gaussian-mesh'],v:{k:'img',img:'s05-gaussian.jpg',tag:'Gaussian scene (rendered view)'},
   log:[['sk','recon-camera-program'],['','tool gaussian splatting → shared frame'],['','select 20 views']]},
- {ph:'Estimate',h:'Masks and instance registry',sub:'SAM 3 segments the selected views. The same object seen in several views keeps one identity.',
+ {ph:'Estimate',h:'Masks and instance registry',say:'SAM 3 segments the selected views. An object seen in several views keeps <b>one identity</b>.',
   sk:['recon-gaussian-mesh'],v:{k:'wipe',a:'s05-photo.jpg',b:'s05-masks.jpg',ta:'photo',tb:'SAM 3 instances'},
   log:[['','tool SAM 3 on 20 views'],['','deduplicate across views → registry']]},
- {ph:'Estimate',h:'Backproject into 3D',sub:'Each instance mask is lifted into the Gaussian frame. External geometry must agree with the saved cameras.',
+ {ph:'Estimate',h:'Backproject into 3D',say:'Lifting each instance mask into the Gaussian frame. External geometry must agree with the saved cameras before I trust it.',
   sk:['recon-gaussian-mesh','recon-evidence-diagrams'],v:{k:'checks',img:'s05-points-all.png',white:1,rows:[['same-source scale','|s − 1| ≤ 3%'],['same-source rotation','∠R ≤ 1°'],['learned depth','never sets layout scale']]},
   log:[['sk','recon-evidence-diagrams'],['','backproject masks → per-object points'],['ok','same-source check passed']]},
- {ph:'Build',h:'Register assets to their points',sub:'Each SAM 3D asset is fitted to its own points: 24 axis candidates, trimmed ICP, one uniform scale.',
+ {ph:'Build',h:'Register assets to their points',say:'Fitting each SAM 3D asset to its own points: 24 axis candidates, trimmed ICP, <b>one uniform scale</b>.',
   sk:['recon-asset-point-registration'],v:{k:'grid',cls:'g2',white:1,imgs:[['s05-asset.png','SAM 3D asset (wood chair)'],['s05-fit.png','its points + fitted asset']]},
   log:[['sk','recon-asset-point-registration'],['','ICP ≤ 40 iters, trim 20%'],['','initial pose only, agent decides placement']]},
- {ph:'Build',h:'Assemble the room',sub:'The agent builds the room enclosure first, then furniture, then the objects they support.',
+ {ph:'Build',h:'Assemble the room',say:'Building the enclosure first, then the furniture, then the objects they support.',
   sk:['task-policy-first'],v:{k:'graph',img:'s05-output.png',nodes:['Room shell','Cabinet','Table','Chair']},
   log:[['','blender: enclosure and openings'],['','blender: hosts, then supported objects']]},
- {ph:'Review',h:'Same-view review',sub:'Render from the saved cameras and compare with the photos. Structural views reduce the influence of colour.',
+ {ph:'Review',h:'Same-view review',say:'Rendering from the saved cameras to compare with the photos. Structural views reduce the influence of colour.',
   sk:['recon-photo-fft-review'],loop:1,v:{k:'wipe',a:'s05-photo.jpg',b:'s05-render.jpg',ta:'photo',tb:'render'},
   log:[['sk','recon-photo-fft-review'],['','render @ saved cameras'],['no','mismatch found → revise geometry']]},
- {ph:'Review',h:'Projection gate',sub:'Rendered silhouettes are compared with the reviewed masks over the saved views. No ground truth is used.',
+ {ph:'Review',h:'Projection gate',say:'Comparing rendered silhouettes with the reviewed masks over the saved views. <b>No ground truth</b> is used here.',
   sk:['iteration-metric-evaluation'],loop:1,v:{k:'checks',img:'s05-overlay.jpg',rows:[['enclosure IoU (median)','≥ 0.80'],['object IoU (median)','≥ 0.65'],['area ratio','0.90 – 1.10'],['consistent shift','none']]},
   log:[['sk','iteration-metric-evaluation'],['','projection gate over saved views'],['ok','gate passed']]},
- {ph:'Review',h:'Physics, reused from tabletops',sub:'The saved-state physics skill, first written for tabletops, checks that every object is supported.',
+ {ph:'Review',h:'Physics, reused from tabletops',say:'Running the saved-state physics skill. It was first written for tabletops, and it checks that every object here is supported.',
   sk:['recon-isaacsim-physics'],loop:1,v:{k:'grid',cls:'g2',imgs:[['s05-support.jpg','support close view'],['s05-foot.jpg','foot contact']]},
   log:[['sk','recon-isaacsim-physics'],['','reopen saved .blend, bullet 5 s'],['ok','all bodies stable']]},
- {ph:'Save',h:'Freeze, verify and record',sub:'Reopen the saved file, re-render, deliver, and write the run record.',
-  sk:['recon-freeze-delivery','recon-issue-ledger'],v:{k:'img',img:'s05-output.png',tag:'editable Blender room',white:1},
+ {ph:'Save',h:'Freeze, verify and record',say:'Reopening the saved file, re-rendering, delivering, and writing the run record.',
+  sk:['recon-freeze-delivery','recon-issue-ledger'],file:1,v:{k:'img',img:'s05-output.png',tag:'editable Blender room',white:1},
   log:[['sk','recon-freeze-delivery'],['sk','recon-issue-ledger'],['ok','delivered']]},
 ]},
-l:{pol:'land', steps:[
- {ph:'Plan',h:'Read the photos, choose a policy',sub:'Internet photos of a landmark route to the outdoor family. The agent drafts a registry of physical parts and a task policy.',
+l:{pol:'land', route:'outdoor › landmark', name:'landmark',
+ user:{text:'These are Internet photos of a landmark. Build a complete, editable model.', imgs:['arc-photo.jpg','sofia-photo.jpg'], more:'+ more photos'},
+ file:['landmark.blend','editable Blender model · verified after reopening'],
+ steps:[
+ {ph:'Plan',h:'Read the photos, choose a policy',say:'Internet photos of a landmark go to the <b>outdoor</b> family. I draft a registry of physical parts and a task policy.',
   sk:['task-policy-first','recon-intake-evidence'],
-  v:{k:'policy',img:'arc-photo.jpg',items:['Registry of parts from all photos','RGB + FFT pre-read of every photo','Cameras: VGGT, then per-view review','Sections → plan and elevations','Structure first, then detail']},
+  v:{k:'policy',img:'arc-photo.jpg',tag:'Arc de Triomphe',items:['Registry of parts from all photos','RGB + FFT pre-read of every photo','Cameras: VGGT, then per-view review','Sections → plan and elevations','Structure first, then detail']},
   log:[['','route: outdoor › landmark'],['sk','task-policy-first'],['sk','recon-intake-evidence']]},
- {ph:'Estimate',h:'Frequency-domain views',sub:'Phase-preserving high-pass views remove colour and expose edges, repetitions and junctions (768 px, f_c = 0.03 cycles/px).',
-  sk:['recon-photo-fft-review'],v:{k:'wipe',a:'arc-photo.jpg',b:'arc-fft.jpg',ta:'photo',tb:'FFT view'},
-  log:[['sk','recon-photo-fft-review'],['','same frozen filter for photos and renders']]},
- {ph:'Estimate',h:'Cameras, checked view by view',sub:'VGGT estimates cameras. The agent rejects estimates that disagree with the photo, a common failure on symmetric facades.',
-  sk:['recon-camera-program','recon-camera-review','recon-camera-bridge'],v:{k:'grid',cls:'g2',imgs:[['sofia-photo.jpg','photo'],['sofia-vggt.png','VGGT points']]},
+ {ph:'Estimate',h:'Frequency-domain views',say:'Phase-preserving high-pass views remove colour and expose edges, repetitions and junctions. Same frozen filter for photos and renders.',
+  sk:['recon-photo-fft-review'],v:{k:'wipe',a:'arc-photo.jpg',b:'arc-fft.jpg',ta:'Arc · photo',tb:'FFT view'},
+  log:[['sk','recon-photo-fft-review'],['','768 px, f_c = 0.03 cycles/px']]},
+ {ph:'Estimate',h:'Cameras, checked view by view',say:'VGGT estimates the cameras. I reject estimates that disagree with the photo, which happens a lot on <b>symmetric facades</b>.',
+  sk:['recon-camera-program','recon-camera-review','recon-camera-bridge'],v:{k:'grid',cls:'g2',imgs:[['sofia-photo.jpg','Sofia · photo'],['sofia-vggt.png','Sofia · VGGT points']]},
   log:[['sk','recon-camera-program'],['sk','recon-camera-review'],['no','pose disagrees with photo → rejected'],['sk','recon-camera-bridge']]},
- {ph:'Estimate',h:'Heuristic engineering drawings',sub:'Sections cut from a SAM 3D reference mesh guide a plan and elevation. They make counts of bays and openings explicit, and stay revisable.',
-  sk:['recon-evidence-diagrams','recon-drawing-model'],v:{k:'draw',imgs:[['arc-section.png','section'],['arc-plan.png','plan'],['arc-elevation.png','elevation']]},
+ {ph:'Estimate',h:'Heuristic engineering drawings',say:'Cutting sections from a SAM 3D reference mesh, then drawing a plan and an elevation. They make counts of bays and openings explicit, and stay revisable.',
+  sk:['recon-evidence-diagrams','recon-drawing-model'],v:{k:'draw',imgs:[['arc-section.png','Arc · section'],['arc-plan.png','Arc · plan'],['arc-elevation.png','Arc · elevation']]},
   log:[['sk','recon-evidence-diagrams'],['','tool SAM 3D → reference mesh'],['','cut sections → draw plan, elevation']]},
- {ph:'Build',h:'Structure first, then detail',sub:'The agent builds the overall structure in Blender from the drawings, then adds finer components.',
-  sk:['recon-drawing-model','recon-attention-orchestration'],v:{k:'grid',cls:'g3',white:1,imgs:[['berlin-plan.png','plan'],['berlin-elevation.png','elevation'],['berlin-assembly.jpg','assembly']]},
+ {ph:'Build',h:'Structure first, then detail',say:'Building the overall structure in Blender from the drawings, then adding finer components. Some components can go to worker agents.',
+  sk:['recon-drawing-model','recon-attention-orchestration'],v:{k:'grid',cls:'g3',white:1,imgs:[['berlin-plan.png','Berliner Dom · plan'],['berlin-elevation.png','elevation'],['berlin-assembly.jpg','assembly']]},
   log:[['sk','recon-drawing-model'],['','blender: massing → bays → openings'],['sk','recon-attention-orchestration'],['','(optional) components to worker agents']]},
- {ph:'Review',h:'Same-camera structural review',sub:'Photos and renders are compared from the same camera in RGB and FFT; close orbits check crowded connections.',
-  sk:['recon-photo-fft-review','recon-orbit-detail-audit'],loop:1,v:{k:'wipe',a:'arc-photo.jpg',b:'arc-render.jpg',ta:'photo',tb:'model'},
+ {ph:'Review',h:'Same-camera structural review',say:'Comparing photos and renders from the same camera, in RGB and FFT. Close orbits check the crowded connections.',
+  sk:['recon-photo-fft-review','recon-orbit-detail-audit'],loop:1,v:{k:'wipe',a:'arc-photo.jpg',b:'arc-render.jpg',ta:'Arc · photo',tb:'model'},
   log:[['sk','recon-photo-fft-review'],['sk','recon-orbit-detail-audit'],['no','missing component → revise']]},
- {ph:'Save',h:'Freeze and verify',sub:'Reopen the saved file, re-render from the recovered cameras and deliver.',
-  sk:['recon-freeze-delivery','recon-surface-texturing'],v:{k:'grid',cls:'g3',white:1,imgs:[['arc-latest.png','Arc de Triomphe'],['berliner-dom.png','Berliner Dom'],['sofia-output.png','Sofia cathedral']]},
+ {ph:'Save',h:'Freeze and verify',say:'Reopening the saved file, re-rendering from the recovered cameras, and delivering.',
+  sk:['recon-freeze-delivery','recon-surface-texturing'],file:1,v:{k:'grid',cls:'g3',white:1,imgs:[['arc-latest.png','Arc de Triomphe'],['berliner-dom.png','Berliner Dom'],['sofia-output.png','Sofia cathedral']]},
   log:[['sk','recon-surface-texturing'],['sk','recon-freeze-delivery'],['ok','delivered']]},
- {ph:'Record',h:'Record the run',sub:'The FFT and drawing skills came from such records: an unguided agent kept fixing colours while structural errors stayed.',
+ {ph:'Record',h:'Record the run',say:'Writing the run record. The FFT and drawing skills came from records like this: an unguided agent kept fixing colours while structural errors stayed.',
   sk:['recon-issue-ledger','recon-success-learning'],v:{k:'record',items:['structural errors that persisted','what fixed them (FFT views, drawings)','candidate skill updates → tested before adoption']},
   log:[['sk','recon-issue-ledger'],['sk','recon-success-learning'],['','record kept for future runs']]},
 ]}};
 const PHASES = ['Plan','Estimate','Build','Review','Revise','Save','Record'];
 
-/* ---- DOM ---- */
-const $ = id => document.getElementById(id);
-const player=$('player'), canvas=$('canvas'), logEl=$('log'), chipsEl=$('chips'), dots=$('dots'), phEl=$('phases');
-const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-chipsEl.innerHTML = SK.map(s=>`<span class="chip" data-s="${s[1]}" title="${s[1]}">${s[2]}</span>`).join('');
+/* ---- DOM refs ---- */
+const player=$('player'), canvas=$('canvas'), chat=$('chat'), chipsEl=$('chips'), dots=$('dots'), phEl=$('phases');
 phEl.innerHTML = PHASES.map((p,i)=>(i?(p==='Revise'?'<i>⇄</i>':'<i>›</i>'):'')+`<span data-p="${p}">${p}</span>`).join('');
 
-let dom='t', idx=0, playing=!reduce, timer=null, typeTimers=[];
-const DUR = 6000;
+let dom='t', idx=0, playing=!reduce, timer=null, timers=[], visible=true;
+const DUR = 7000;
 
+/* ---- workspace visuals ---- */
 function fig(src,tag,extra=''){return `<div class="fig ${extra}"><img src="${A(src)}" alt="${tag||''}">${tag?`<span class="tag">${tag}</span>`:''}</div>`}
 function visual(v){
   const w = v.white?'white':'';
@@ -464,74 +764,131 @@ function visual(v){
   case 'wipe': return `<div class="v" style="grid-template-rows:minmax(0,1fr)"><div class="fig wipe ${w}"><img src="${A(v.a)}" alt="${v.ta}"><div class="top"><img src="${A(v.b)}" alt="${v.tb}"></div><div class="bar"></div><span class="tag">${v.tb}</span><span class="tag r">${v.ta}</span></div></div>`;
   case 'grid': return `<div class="v stag ${v.cls}" style="grid-template-rows:minmax(0,1fr)">${v.imgs.map(i=>fig(i[0],i[1],w)).join('')}</div>`;
   case 'draw': return `<div class="v g3" style="grid-template-rows:minmax(0,1fr)">${v.imgs.map(i=>`<div class="fig white draw"><img src="${A(i[0])}" alt="${i[1]}"><span class="tag">${i[1]}</span></div>`).join('')}</div>`;
-  case 'policy': return `<div class="v g12" style="grid-template-rows:minmax(0,1fr)">${fig(v.img,'input')}<div class="card"><span class="k">Task policy</span><ol>${v.items.map((t,i)=>`<li style="animation-delay:${.5+i*.45}s">${t}</li>`).join('')}</ol></div></div>`;
+  case 'policy': return `<div class="v g12" style="grid-template-rows:minmax(0,1fr)">${fig(v.img,v.tag||'input')}<div class="card"><span class="k">Task policy</span><ol>${v.items.map((t,i)=>`<li style="animation-delay:${.5+i*.45}s">${t}</li>`).join('')}</ol></div></div>`;
   case 'checks': return `<div class="v g21" style="grid-template-rows:minmax(0,1fr)">${fig(v.img,null,w)}<div class="card"><span class="k">Checks</span><div class="checks">${v.rows.map((r,i)=>`<div style="animation-delay:${.6+i*.6}s"><span class="m">✓</span><span>${r[0]}</span><span class="val">${r[1]}</span></div>`).join('')}</div></div></div>`;
   case 'graph': {
     const n=v.nodes, pos=[[100,40],[100,130],[40,220],[160,220]];
     const g = `<svg class="sg" viewBox="0 0 200 260" role="img" aria-label="Support graph">
       <path d="M100 58 V112" style="animation-delay:.5s"/><path d="M100 148 L45 202" style="animation-delay:1.2s"/><path d="M100 148 L160 202" style="animation-delay:1.2s"/>
-      ${n.map((t,i)=>`<g style="animation-delay:${i<2?i*.6:1.6}s"><rect x="${pos[i][0]-38}" y="${pos[i][1]-18}" width="76" height="36" rx="7"/><text x="${pos[i][0]}" y="${pos[i][1]+5}" text-anchor="middle">${t}</text></g>`).join('')}</svg>`;
+      ${n.map((t,i)=>`<g style="animation-delay:${i<2?i*.6:1.6}s"><rect x="${pos[i][0]-42}" y="${pos[i][1]-18}" width="84" height="36" rx="8"/><text x="${pos[i][0]}" y="${pos[i][1]+5}" text-anchor="middle">${t}</text></g>`).join('')}</svg>`;
     return `<div class="v g12" style="grid-template-rows:minmax(0,1fr)"><div class="card"><span class="k">Support order</span>${g}</div>${fig(v.img,'Blender scene','white kb')}</div>`;}
   case 'record': return `<div class="v" style="place-items:center"><div class="card" style="max-width:440px;width:100%"><span class="k">Run record → library</span><ol>${v.items.map((t,i)=>`<li style="animation-delay:${.4+i*.6}s">${t}</li>`).join('')}</ol><p style="font-size:14px;color:var(--muted);animation:fadein .4s ease 2.4s both">Example: the saved-state physics skill was proposed from a tabletop record and later reused in rooms.</p></div></div>`;
   }
 }
-function typeLog(lines, cl){
-  typeTimers.forEach(clearTimeout); typeTimers=[];
-  logEl.querySelectorAll('.ln').forEach(e=>e.classList.add('old'));
-  const old = logEl.querySelectorAll('.ln'); if(old.length>14) for(let i=0;i<old.length-14;i++) old[i].remove();
-  logEl.querySelector('.cursor')?.remove();
-  lines.forEach((l,i)=>{
-    typeTimers.push(setTimeout(()=>{
-      const d=document.createElement('div'); d.className='ln '+l[0]; d.style.setProperty('--cl',cl);
-      d.innerHTML = l[0]==='sk' ? `<span class="p">› skill </span><b>${l[1]}</b>` : l[0]==='ok' ? `✓ ${l[1]}` : l[0]==='no' ? `✗ ${l[1]}` : `<span class="p">  </span>${l[1]}`;
-      logEl.appendChild(d);
-      if(i===lines.length-1){const c=document.createElement('span');c.className='cursor';d.appendChild(document.createTextNode(' '));d.appendChild(c);}
-    }, reduce?0:250+i*700));
-  });
+
+/* ---- chat transcript ---- */
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+function callHTML(l){
+  const [k,t] = l;
+  if(k==='ok') return `<div class="res ok"><span>✓</span><span>${esc(t)}</span></div>`;
+  if(k==='no') return `<div class="res no"><span>✗</span><span>${esc(t)}</span></div>`;
+  if(k==='sk') return `<div class="call skill"><span class="ic">${IC.skill}</span><span><span class="k">Skill</span> ${t}<br><span style="color:var(--muted)">${SKN[t]||''}</span></span><span class="st">loaded</span></div>`;
+  let type='nt', body=esc(t);
+  if(/^tool /.test(t)){type='tool'; body=`<span class="k">Tool</span> ${esc(t.slice(5))}`;}
+  else if(/^blender:/.test(t)){type='bl'; body=`<span class="k">Blender</span> ${esc(t.slice(8).trim())}`;}
+  else if(/^route:/.test(t)){type='nt'; body=`<span class="k">Route</span> ${esc(t.slice(6).trim())}`;}
+  return `<div class="call ${type}"><span class="ic">${IC[type]}</span><span>${body}</span><span class="st">done</span></div>`;
 }
+function thumbsOf(v){
+  const list = v.k==='wipe'?[v.b]:v.k==='grid'||v.k==='draw'?v.imgs.map(i=>i[0]):v.k==='checks'||v.k==='img'||v.k==='graph'?[v.img]:[];
+  return list.length?`<div class="thumbs">${list.map(s=>`<img src="${A(s)}" alt="">`).join('')}</div>`:'';
+}
+const agentWho = () => `<div class="who"><span class="av agent">${AGENT_IC}</span>Agent</div>`;
+function userHTML(run){
+  return `<div class="msg user"><div class="who"><span class="av user">You</span>You</div>
+    <div class="attach">${run.user.imgs.map(s=>`<img src="${A(s)}" alt="input photo">`).join('')}${run.user.more?`<span class="more">${run.user.more}</span>`:''}</div>
+    <div class="bubble">${run.user.text}</div></div>`;
+}
+function stepStatic(run,s,prev){
+  let h = (!prev || prev.ph!==s.ph) ? `<div class="divider">${s.ph}</div>` : '';
+  h += `<div class="msg">${agentWho()}<p class="say">${s.say}</p><div class="calls">${s.log.map(callHTML).join('')}</div>${thumbsOf(s.v)}</div>`;
+  if(s.file) h += fileHTML(run);
+  return h;
+}
+function fileHTML(run){
+  return `<div class="file"><svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 3h9l5 5v15H6z"/><path d="M15 3v5h5"/><path d="M10 15l3-1.8 3 1.8v3.6l-3 1.8-3-1.8z"/></svg><div><b>${run.file[0]}</b><span>${run.file[1]}</span></div></div>`;
+}
+function scrollChat(){ chat.scrollTop = chat.scrollHeight; }
+function animateStep(run,s,prev){
+  timers.forEach(clearTimeout); timers=[];
+  const add = (html)=>{ const t=document.createElement('template'); t.innerHTML=html.trim(); const n=t.content.firstElementChild; chat.appendChild(n); scrollChat(); return n; };
+  const at = (ms,fn)=>timers.push(setTimeout(fn, reduce?0:ms));
+  if(!prev || prev.ph!==s.ph) add(`<div class="divider">${s.ph}</div>`);
+  const typing = add(`<div class="typing" aria-hidden="true"><i></i><i></i><i></i></div>`);
+  let msg, calls;
+  at(550,()=>{ typing.remove(); msg = add(`<div class="msg">${agentWho()}<p class="say">${s.say}</p></div>`); });
+  const t0 = 1200, gap = 650;
+  s.log.forEach((l,i)=>at(t0+i*gap,()=>{
+    if(!calls){ calls=document.createElement('div'); calls.className='calls'; msg.appendChild(calls); }
+    const t=document.createElement('template'); t.innerHTML=callHTML(l).trim(); const n=t.content.firstElementChild;
+    const st=n.querySelector('.st'); let final=null;
+    if(st){ final=st.textContent; st.innerHTML='<span class="spin"></span>'; setTimeout(()=>{st.textContent=final;}, reduce?0:480); }
+    calls.appendChild(n); scrollChat();
+    if(l[0]==='sk') markSkill(l[1]);
+  }));
+  const tEnd = t0 + s.log.length*gap;
+  const th = thumbsOf(s.v); if(th) at(tEnd,()=>{ msg.insertAdjacentHTML('beforeend',th); scrollChat(); });
+  if(s.file) at(tEnd+500,()=>add(fileHTML(run)));
+}
+
+/* ---- loaded skills ---- */
+let loaded = new Set();
+function drawChips(live){
+  chipsEl.innerHTML = [...loaded].map(k=>`<span class="chip ${live.includes(k)?'live':''}" title="${k}">${SKN[k]}</span>`).join('');
+  $('s-n').textContent = loaded.size; $('s-meter').style.width = (loaded.size/22*100)+'%';
+}
+let liveNow=[];
+function markSkill(k){ if(!loaded.has(k)){ loaded.add(k); } drawChips(liveNow); }
+
+/* ---- render ---- */
 function render(){
   const run=RUNS[dom], s=run.steps[idx], c=DC[dom];
   player.style.setProperty('--c',c);
   ['t','r','l'].forEach(d=>$('tab-'+d).setAttribute('aria-pressed',d===dom));
-  document.querySelectorAll('#ptree .pol').forEach(p=>{p.classList.toggle('on',p.dataset.p===run.pol);p.style.setProperty('--c',c)});
-  $('s-ph').textContent=s.ph; $('s-h').textContent=s.h; $('s-sub').textContent=s.sub;
+  $('s-name').textContent = 'session · '+run.name;
+  $('s-ph').textContent=s.ph; $('s-h').textContent=s.h; $('s-route').textContent='policy: '+run.route;
   canvas.innerHTML = visual(s.v) + (s.loop?`<span class="loop"><svg width="12" height="12" viewBox="0 0 12 12"><path d="M10 6a4 4 0 1 1-1.2-2.8M10 1v3H7" stroke="#fff" stroke-width="1.6" fill="none"/></svg>review ⇄ revise</span>`:'');
-  const used = new Set(); run.steps.slice(0,idx).forEach(x=>x.sk.forEach(k=>used.add(k)));
-  chipsEl.querySelectorAll('.chip').forEach(ch=>{const k=ch.dataset.s; ch.style.setProperty('--c',c);
-    ch.classList.toggle('live',s.sk.includes(k)); ch.classList.toggle('used',used.has(k)&&!s.sk.includes(k));
-    ch.classList.toggle('added', s.ph==='Record' && (k==='recon-isaacsim-physics'||k==='recon-photo-fft-review'));});
+  // transcript: history static, current step animated
+  chat.classList.add('static');
+  chat.innerHTML = userHTML(run) + run.steps.slice(0,idx).map((x,i)=>stepStatic(run,x,run.steps[i-1])).join('');
+  chat.classList.remove('static');
+  // the history is static; the newly-appended nodes animate
+  chat.querySelectorAll('.msg,.call,.res').forEach(n=>n.style.animation='none');
+  loaded = new Set(); run.steps.slice(0,idx).forEach(x=>x.log.forEach(l=>{ if(l[0]==='sk') loaded.add(l[1]); }));
+  liveNow = s.sk; drawChips(liveNow);
+  scrollChat();
+  animateStep(run,s,run.steps[idx-1]);
   const pi = PHASES.indexOf(s.ph);
   phEl.querySelectorAll('span').forEach((sp,i)=>{const p=sp.dataset.p; const on = p===s.ph || (s.loop && p==='Revise');
     sp.classList.toggle('on',on); sp.classList.toggle('done',i<pi);});
   dots.innerHTML = run.steps.map((x,i)=>`<button aria-label="Step ${i+1}: ${x.h}" class="${i<idx?'done':''} ${i===idx?'cur':''}" data-i="${i}"><span class="fill"></span></button>`).join('');
   dots.style.setProperty('--dur',DUR+'ms');
-  typeLog(s.log, DCL[dom]);
   schedule();
 }
 function schedule(){
   clearTimeout(timer); player.classList.toggle('paused',!playing);
   $('b-play').textContent = playing?'Pause':'Play'; $('b-play').setAttribute('aria-label',playing?'Pause':'Play');
-  if(playing) timer=setTimeout(next, DUR);
+  if(playing && visible) timer=setTimeout(next, DUR);
 }
-function next(){const n=RUNS[dom].steps.length; if(idx<n-1){idx++;} else {const o=['t','r','l']; dom=o[(o.indexOf(dom)+1)%3]; idx=0; logEl.querySelectorAll('.ln').forEach(e=>e.remove());} render();}
+function next(){const n=RUNS[dom].steps.length; if(idx<n-1){idx++;} else {const o=['t','r','l']; dom=o[(o.indexOf(dom)+1)%3]; idx=0;} render();}
 function prev(){if(idx>0){idx--;render();}}
 $('b-next').onclick=()=>next(); $('b-prev').onclick=()=>prev();
-$('b-play').onclick=()=>{playing=!playing; if(playing) render(); else schedule();};
-$('b-full').onclick=()=>{try{ if(document.fullscreenElement) document.exitFullscreen(); else player.requestFullscreen().catch(()=>{});}catch(e){}};
-document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{dom=b.dataset.d; idx=0; logEl.querySelectorAll('.ln').forEach(e=>e.remove()); render();});
+$('b-play').onclick=()=>{playing=!playing; if(playing) next(); else schedule();};
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{dom=b.dataset.d; idx=0; render();});
 dots.addEventListener('click',e=>{const b=e.target.closest('button'); if(b){idx=+b.dataset.i; render();}});
 player.addEventListener('keydown',e=>{if(e.key==='ArrowRight')next(); if(e.key==='ArrowLeft')prev();});
-// pause when off-screen
-new IntersectionObserver(es=>es.forEach(en=>{ if(!en.isIntersecting){clearTimeout(timer);} else if(playing){schedule();} }),{threshold:.2}).observe(player);
+if('IntersectionObserver' in window){
+  new IntersectionObserver(es=>es.forEach(en=>{ visible=en.isIntersecting; if(!visible) clearTimeout(timer); else schedule(); }),{threshold:.25}).observe(player);
+}
 render();
 
 /* ---- catalogue ---- */
 const cat=$('catalog');
-cat.innerHTML = ROLES.map(([r,label])=>{const list=SK.filter(s=>s[0]===r); return `<div class="role"><div class="rh"><h3>${label}</h3><span class="n">${list.length} skill${list.length>1?'s':''}</span></div><div class="sgrid">${list.map(s=>`
-  <button class="skc" id="sk-${s[1]}" data-use="${s[5]}" aria-expanded="false">
-    <span class="th">${s[6]?`<img src="${A(s[6])}" alt="" loading="lazy">`:'md'}</span>
+cat.innerHTML = ROLES.map(([r,label])=>{const list=SK.filter(s=>s[0]===r); return `<div class="role reveal"><div class="rh"><h3>${label}</h3><span class="n">${list.length} skill${list.length>1?'s':''}</span></div><div class="sgrid">${list.map(s=>`
+  <button class="skc" data-use="${s[5]}" aria-expanded="false">
+    <span class="th">${s[6]?`<img src="${A(s[6])}" alt="" loading="lazy">`:'.md'}</span>
     <span style="min-width:0"><span class="nm">${s[2]}</span><br><span class="id">${s[1]}</span>
-      <span class="ds" style="display:block">${s[3]}</span>
+      <span class="ds">${s[3]}</span>
       <span class="more">${s[4]}</span>
       <span class="use">${s[5].includes('t')?'<span class="u-t">Tabletop</span>':''}${s[5].includes('r')?'<span class="u-r">Room</span>':''}${s[5].includes('l')?'<span class="u-l">Landmark</span>':''}</span>
     </span></button>`).join('')}</div></div>`}).join('');
@@ -541,20 +898,39 @@ document.querySelectorAll('.filters button').forEach(b=>b.onclick=()=>{
   const f=b.dataset.f; cat.querySelectorAll('.skc').forEach(s=>s.classList.toggle('dim', f!=='all' && !s.dataset.use.includes(f)));
 });
 
-/* ---- transfer story ---- */
+/* ---- stability bars ---- */
 const DATA=[['Scene 01',16.7,93.8],['Scene 02',35.7,100.0],['Scene 08',4.3,95.7]];
 $('bars').innerHTML = DATA.map(d=>`<div class="bar"><span>${d[0]}</span><span class="track"><span class="b1" data-w="${d[2]}"></span><span class="b0" style="width:${d[1]}%"></span></span><span class="num">${d[1].toFixed(1)} → ${d[2].toFixed(1)}%</span></div>`).join('');
-const fs=[...document.querySelectorAll('.fs')];
-let flowRun=false;
-function playFlow(){ if(flowRun) return; flowRun=true;
-  fs.forEach((f,i)=>setTimeout(()=>f.classList.add('on'), reduce?0:i*900));
-  setTimeout(()=>document.querySelectorAll('.b1').forEach(b=>b.style.width=b.dataset.w+'%'), reduce?0:3000);
+const growBars = ()=>document.querySelectorAll('.b1').forEach(b=>b.style.width=b.dataset.w+'%');
+
+/* ---- results marquee ---- */
+const NAMES = {0:'Scene 01',3:'Scene 02',6:'Scene 05',9:'Scene 08',2:'Scene 11',46:'Arc de Triomphe',47:'Brandenburg Gate',49:'St. Vitus',50:'Sofia',51:'Savior on Spilled Blood',53:'Florence',56:'Sydney Harbour Bridge',66:'Berliner Dom',52:'Charlottenburg',57:'Washington Sq.',
+  11:'Misc',18:'Real robot 1',29:'RoboDojo',31:'RoboDojo',33:'RoboDojo',38:'RoboLab',40:'RoboLab',43:'RoboLab',44:'RoboLab',21:'Real robot 15',25:'Real robot 4'};
+const ROW1=[46,6,29,50,0,38,66,18,3,51,31,53], ROW2=[9,47,40,2,49,21,56,33,52,43,57,25,44,11];
+const tile = i => `<a class="tile" href="gallery.html" tabindex="-1"><img src="img/r${String(i).padStart(2,'0')}.webp" alt="${NAMES[i]||''}" loading="lazy"><span>${NAMES[i]||''}</span></a>`;
+$('marquee').innerHTML = [ROW1,ROW2].map((r,k)=>`<div class="track2 ${k?'rev':''}">${r.concat(r).map(tile).join('')}</div>`).join('');
+
+/* ---- scroll reveal, nav state, progress ---- */
+const reveals=[...document.querySelectorAll('.reveal')];
+const thread=$('thread'), ladder=$('ladder');
+if('IntersectionObserver' in window && !reduce){
+  const io=new IntersectionObserver(es=>es.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); if(en.target.id==='flow') setTimeout(growBars,300); io.unobserve(en.target);} }),{threshold:.12,rootMargin:'0px 0px -6% 0px'});
+  reveals.concat([thread]).forEach(r=>io.observe(r));
+  // never leave content hidden if the observer does not fire
+  setTimeout(()=>{ reveals.forEach(r=>r.classList.add('in')); thread.classList.add('in'); growBars(); }, 6000);
+} else { reveals.forEach(r=>r.classList.add('in')); thread.classList.add('in'); growBars(); }
+requestAnimationFrame(()=>setTimeout(()=>ladder.classList.add('in'),100));
+
+const nav=$('nav'), prog=$('prog'), links=[...document.querySelectorAll('.nav ul a')];
+const secs=links.map(a=>document.querySelector(a.getAttribute('href')));
+function onScroll(){
+  const y=scrollY, h=document.documentElement.scrollHeight-innerHeight;
+  nav.classList.toggle('stuck', y>8); prog.style.width=(h>0?y/h*100:0)+'%';
+  let cur=-1; secs.forEach((s,i)=>{ if(s && s.getBoundingClientRect().top<innerHeight*.4) cur=i; });
+  links.forEach((a,i)=>a.classList.toggle('on',i===cur));
 }
-// resting state is complete: if observer never fires, still show everything after load
-new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting) playFlow();}),{threshold:.35}).observe($('flow'));
-setTimeout(()=>{ if(!flowRun){ fs.forEach(f=>f.classList.add('on')); document.querySelectorAll('.b1').forEach(b=>b.style.width=b.dataset.w+'%'); flowRun=true; } }, 5000);
+addEventListener('scroll',onScroll,{passive:true}); onScroll();
 })();
 </script>
-
 </body>
 </html>
